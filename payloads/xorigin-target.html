@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Cross-Origin Target Page</title>
+</head>
+<body>
+<h1>Cross-Origin Target Page</h1>
+<p>This page is served from the cross-origin domain (ebniw.com).</p>
+<p>It contains "sensitive" data used by UXSS/SOP bypass tests.</p>
+<div id="secret-data">SECRET_VALUE_XORIGIN_12345</div>
+<div id="session-token">SESSION_TOKEN_FAKE_67890</div>
+<script>
+// Report the current origin to any parent/opener via postMessage
+if (window.opener) {
+    window.opener.postMessage({
+        type: 'xorigin-loaded',
+        origin: location.origin,
+        url: location.href
+    }, '*');
+}
+if (window.parent !== window) {
+    window.parent.postMessage({
+        type: 'xorigin-loaded',
+        origin: location.origin,
+        url: location.href
+    }, '*');
+}
+</script>
+</body>
+</html>

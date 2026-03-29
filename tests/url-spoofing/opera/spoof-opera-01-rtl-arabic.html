@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>SPOOF-OPERA-01: Opera RTL/Arabic Character Address Bar Spoof</title>
+    <link rel="stylesheet" href="../../../css/style.css">
+</head>
+<body class="test-page" style="background:#0d1117;color:#c9d1d9;">
+<div class="container">
+    <a href="../../../index.html" class="btn btn-back">&larr; Back to Suite</a>
+    <h1>Opera RTL/Arabic Character Address Bar Spoofing</h1>
+    <div class="meta">
+        <span>ID: SPOOF-OPERA-01</span>
+        <span>CVE: CVE-2019-12278, Opera GX 2023 bugs (Renwa)</span>
+        <span>Browsers: Opera, Opera GX, Opera Mini (Android)</span>
+        <span>Category: URL Spoofing / RTL</span>
+    </div>
+
+    <div class="test-section">
+        <h2>Description</h2>
+        <p>Opera browsers on Android have historically been vulnerable to address bar spoofing
+        via Arabic/RTL characters in URLs. When an Arabic character is combined with Latin
+        characters, the browser may hang and the URL bar retains an attacker-set value.
+        Additionally, the "first strong character" rule for BiDi text causes URLs starting
+        with RTL characters to render right-to-left.</p>
+        <p>Key Unicode characters: U+FE70, U+0622, U+0623, U+08FF, U+FB50, U+202E (RTL override)</p>
+    </div>
+
+    <div class="test-section">
+        <h2>Technique</h2>
+        <div class="code-block">// Variant 1: Arabic char + Latin causes browser hang (Opera GX Android)
+// http://سgoogle.com
+// When pasted in textarea and "searched", sets address bar
+
+// Variant 2: RTL Override Character
+// U+202E reverses text direction
+// https://evil.com/\u202Emoc.elgoog → displays as google.com...
+
+// Variant 3: IP address + neutral chars + RTL char
+// URL must start with IP (treated as punctuation)
+// followed by neutral chars, then RTL as first strong char
+// http://1.2.3.4/‫moc.elgoog → renders RTL
+
+// Variant 4: Homograph with Arabic diacritics
+// U+0610-U+061A: Arabic diacritics that can overlay Latin chars
+
+// Firefox was also affected: CVE-2021-4221
+// Browser removes protocol for display, Arabic chars at start cause RTL</div>
+    </div>
+
+    <div class="test-section">
+        <h2>Run Test</h2>
+        <button class="btn btn-run" onclick="runTest()">Test RTL URL Rendering</button>
+        <button class="btn" onclick="runOverrideTest()">Test RTL Override Character</button>
+        <button class="btn" onclick="runHomographTest()">Test IDN Homograph</button>
+        <div id="output" class="output-box" style="margin-top:10px;"></div>
+    </div>
+</div>
+
+<script src="../../../js/utils.js"></script>
+<script>
+function runTest() {
+    const output = document.getElementById('output');
+    const info = detectBrowser();
+    output.innerHTML = '<div style="color:#d29922;">Testing RTL URL rendering behavior...</div>';
+    output.innerHTML += '<div style="color:#8b949e;">Browser: ' + info.browser + ' ' + info.version + '</div>';
+
+    // Generate test URLs with various RTL/Arabic characters
+    const testChars = [
+        { name: 'Arabic Fathatan (U+FE70)', char: '\uFE70' },
+        { name: 'Arabic Alef Madda (U+0622)', char: '\u0622' },
+        { name: 'Arabic Alef Hamza (U+0623)', char: '\u0623' },
+        { name: 'RTL Override (U+202E)', char: '\u202E' },
+        { name: 'RTL Embedding (U+202B)', char: '\u202B' },
+        { name: 'RTL Mark (U+200F)', char: '\u200F' },
+        { name: 'Arabic Letter (U+0627)', char: '\u0627' },
+        { name: 'Arabic Sukun (U+0652)', char: '\u0652' },
+    ];
+
+    output.innerHTML += '<div style="color:#58a6ff;margin-top:10px;">URL Rendering Tests:</div>';
+
+    testChars.forEach(function(tc) {
+        const testUrl = 'https://' + tc.char + 'google.com.' + CONFIG.PRIMARY_DOMAIN + '/';
+        const display = document.createElement('div');
+        display.style.cssText = 'color:#8b949e;padding:3px 0;border-bottom:1px solid #30363d;';
+
+        // Show both the raw URL and how the browser renders it
+        const link = document.createElement('a');
+        link.href = testUrl;
+        link.style.color = '#d29922';
+
+        display.innerHTML = '<span style="color:#58a6ff;">' + tc.name + ':</span> ';
+        display.appendChild(document.createTextNode('Raw: ' + testUrl));
+        display.innerHTML += '<br>Rendered: ';
+        display.appendChild(link);
+        link.textContent = link.href;
+        display.innerHTML += '<br><span style="color:#8b949e;font-size:0.85em;">Parsed hostname: ' + (link.hostname || 'N/A') + '</span>';
+
+        output.appendChild(display);
+    });
+
+    reportResult('output', 'RTL URL rendering', false,
+        'Check the rendered URLs above. On vulnerable browsers, RTL characters cause the URL to display right-to-left.');
+}
+
+function runOverrideTest() {
+    const output = document.getElementById('output');
+    output.innerHTML = '<div style="color:#d29922;">Testing RTL Override character (U+202E)...</div>';
+
+    // U+202E forces everything after it to render right-to-left
+    const samples = [
+        { label: 'RTL Override in path', text: 'https://' + CONFIG.PRIMARY_DOMAIN + '/\u202Emoc.elgoog/nigol' },
+        { label: 'RTL Override in subdomain', text: 'https://\u202Emoc.elgoog.' + CONFIG.PRIMARY_DOMAIN + '/' },
+        { label: 'Mixed BiDi', text: 'https://secure.\u202Emoc.elgoog\u202C.' + CONFIG.PRIMARY_DOMAIN + '/' },
+    ];
+
+    samples.forEach(function(s) {
+        const div = document.createElement('div');
+        div.style.cssText = 'margin:8px 0;padding:8px;background:#161b22;border-radius:4px;';
+        div.innerHTML = '<div style="color:#58a6ff;">' + s.label + ':</div>';
+
+        const urlDiv = document.createElement('div');
+        urlDiv.style.cssText = 'font-family:monospace;padding:4px;background:#0d1117;border-radius:3px;margin-top:4px;';
+        urlDiv.textContent = s.text;
+        div.appendChild(urlDiv);
+
+        const hexDiv = document.createElement('div');
+        hexDiv.style.cssText = 'color:#8b949e;font-size:0.8em;margin-top:4px;';
+        let hex = '';
+        for (let i = 0; i < s.text.length; i++) {
+            const code = s.text.charCodeAt(i);
+            if (code > 127) hex += 'U+' + code.toString(16).toUpperCase().padStart(4, '0') + ' ';
+        }
+        hexDiv.textContent = 'Non-ASCII chars: ' + (hex || 'none');
+        div.appendChild(hexDiv);
+
+        output.appendChild(div);
+    });
+
+    output.innerHTML += '<div style="color:#d29922;margin-top:10px;">If the text above appears reversed (showing "google.com" instead of "moc.elgoog"), the RTL override is effective.</div>';
+}
+
+function runHomographTest() {
+    const output = document.getElementById('output');
+    output.innerHTML = '<div style="color:#d29922;">Testing IDN Homograph attacks...</div>';
+
+    // Punycode domains that visually resemble legitimate domains
+    const homographs = [
+        { target: 'apple.com', punycode: 'xn--pple-43d.com', display: '\u0430pple.com', desc: 'Cyrillic "a" (U+0430)' },
+        { target: 'google.com', punycode: 'xn--ggle-55da.com', display: 'g\u043E\u043Egle.com', desc: 'Cyrillic "o" (U+043E)' },
+        { target: 'paypal.com', punycode: 'xn--paypl-7ve.com', display: 'payp\u0430l.com', desc: 'Cyrillic "a" (U+0430)' },
+    ];
+
+    homographs.forEach(function(h) {
+        output.innerHTML += '<div style="margin:8px 0;padding:8px;background:#161b22;border-radius:4px;">' +
+            '<div style="color:#58a6ff;">Target: ' + h.target + '</div>' +
+            '<div style="color:#d29922;">Homograph: ' + h.display + ' (' + h.desc + ')</div>' +
+            '<div style="color:#8b949e;">Punycode: ' + h.punycode + '</div>' +
+            '</div>';
+    });
+
+    output.innerHTML += '<div style="color:#d29922;margin-top:10px;">Modern browsers show Punycode for mixed-script domains. ' +
+        'Test whether your browser displays the Unicode or Punycode version.</div>';
+
+    // Check browser's IDN handling
+    const testLink = document.createElement('a');
+    testLink.href = 'https://xn--pple-43d.com/';
+    output.innerHTML += '<div style="color:#8b949e;margin-top:5px;">Browser displays xn--pple-43d.com as: ' + testLink.hostname + '</div>';
+}
+</script>
+</body>
+</html>

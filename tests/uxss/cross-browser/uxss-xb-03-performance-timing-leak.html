@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>UXSS-XB-03: Performance API Cross-Origin Timing Leak</title>
+    <link rel="stylesheet" href="../../../css/style.css">
+</head>
+<body class="test-page" style="background:#0d1117;color:#c9d1d9;">
+<div class="container">
+    <a href="../../../index.html" class="btn btn-back">&larr; Back to Suite</a>
+    <h1>Performance API Cross-Origin Resource Timing Leak</h1>
+    <div class="meta">
+        <span>ID: UXSS-XB-03</span>
+        <span>Browsers: All (varies by implementation)</span>
+        <span>Category: Cross-Origin Information Leak</span>
+    </div>
+
+    <div class="test-section">
+        <h2>Description</h2>
+        <p>The Performance Resource Timing API can leak cross-origin information through
+        timing data. Without <code>Timing-Allow-Origin</code> headers, most timing attributes
+        should be zero, but some browsers leak response size, redirect information, or
+        accurate timing that can be used for side-channel attacks.</p>
+    </div>
+
+    <div class="test-section">
+        <h2>Run Test</h2>
+        <button class="btn btn-run" onclick="runTest()">Test Resource Timing Leaks</button>
+        <button class="btn" onclick="runCacheProbe()">Variant: Cache Timing Probe</button>
+        <div id="output" class="output-box" style="margin-top:10px;"></div>
+    </div>
+</div>
+
+<script src="../../../js/utils.js"></script>
+<script>
+function runTest() {
+    const output = document.getElementById('output');
+    const info = detectBrowser();
+    output.innerHTML = '<div style="color:#d29922;">Running resource timing leak test...</div>';
+    output.innerHTML += '<div style="color:#8b949e;">Browser: ' + info.browser + ' ' + info.version + '</div>';
+
+    // Clear existing entries
+    performance.clearResourceTimingBuffer();
+
+    // Fetch a cross-origin resource
+    const targetUrl = CONFIG.XORIGIN_ORIGIN + '/?timing-test=' + Date.now();
+
+    const img = new Image();
+    img.src = targetUrl;
+
+    img.onload = img.onerror = function() {
+        setTimeout(function() {
+            const entries = performance.getEntriesByType('resource');
+            const xoriginEntries = entries.filter(function(e) {
+                return e.name.includes(CONFIG.XORIGIN_DOMAIN);
+            });
+
+            if (xoriginEntries.length === 0) {
+                output.innerHTML += '<div style="color:#8b949e;">No resource timing entries found for cross-origin request.</div>';
+                reportResult('output', 'Resource timing leak', false, 'No entries recorded');
+                return;
+            }
+
+            xoriginEntries.forEach(function(entry) {
+                output.innerHTML += '<div style="color:#58a6ff;font-weight:bold;">Resource: ' + entry.name + '</div>';
+
+                const fields = [
+                    'duration', 'transferSize', 'encodedBodySize', 'decodedBodySize',
+                    'redirectStart', 'redirectEnd', 'domainLookupStart', 'domainLookupEnd',
+                    'connectStart', 'connectEnd', 'secureConnectionStart',
+                    'requestStart', 'responseStart', 'responseEnd',
+                    'serverTiming'
+                ];
+
+                let leaked = [];
+                fields.forEach(function(field) {
+                    const val = entry[field];
+                    if (val !== undefined && val !== 0 && val !== '') {
+                        const isArray = Array.isArray(val);
+                        const display = isArray ? JSON.stringify(val) : val;
+                        output.innerHTML += '<div style="color:#d29922;">  ' + field + ': ' + display + '</div>';
+                        if (field !== 'duration' && field !== 'responseEnd') {
+                            leaked.push(field);
+                        }
+                    } else {
+                        output.innerHTML += '<div style="color:#3fb950;">  ' + field + ': ' + val + ' (zeroed/hidden)</div>';
+                    }
+                });
+
+                if (leaked.length > 0) {
+                    reportResult('output', 'Resource timing data leak', true,
+                        'Leaked fields: ' + leaked.join(', '));
+                } else {
+                    reportResult('output', 'Resource timing data leak', false,
+                        'All sensitive fields properly zeroed for cross-origin resource');
+                }
+            });
+        }, 1000);
+    };
+}
+
+function runCacheProbe() {
+    const output = document.getElementById('output');
+    output.innerHTML = '<div style="color:#d29922;">Running cache timing probe...</div>';
+
+    // Technique: measure if a cross-origin resource is in browser cache
+    // by comparing load times
+    const targetUrl = CONFIG.XORIGIN_ORIGIN + '/favicon.ico';
+
+    // First load (cold)
+    const start1 = performance.now();
+    const img1 = new Image();
+    img1.onload = img1.onerror = function() {
+        const time1 = performance.now() - start1;
+        output.innerHTML += '<div style="color:#8b949e;">First load: ' + time1.toFixed(2) + 'ms</div>';
+
+        // Second load (should be cached)
+        setTimeout(function() {
+            const start2 = performance.now();
+            const img2 = new Image();
+            img2.onload = img2.onerror = function() {
+                const time2 = performance.now() - start2;
+                output.innerHTML += '<div style="color:#8b949e;">Second load: ' + time2.toFixed(2) + 'ms</div>';
+
+                const ratio = time1 / time2;
+                output.innerHTML += '<div style="color:#8b949e;">Speed ratio: ' + ratio.toFixed(2) + 'x</div>';
+
+                if (ratio > 3) {
+                    output.innerHTML += '<div style="color:#d29922;">Significant timing difference suggests cache probing is possible.</div>';
+                    reportResult('output', 'Cache timing probe', true,
+                        'Ratio: ' + ratio.toFixed(2) + 'x - cache state detectable');
+                } else {
+                    reportResult('output', 'Cache timing probe', false,
+                        'Ratio: ' + ratio.toFixed(2) + 'x - not significant');
+                }
+            };
+            img2.src = targetUrl + '?t2=' + Date.now();
+        }, 100);
+    };
+    img1.src = targetUrl + '?t1=' + Date.now();
+}
+</script>
+</body>
+</html>

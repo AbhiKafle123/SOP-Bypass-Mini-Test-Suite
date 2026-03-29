@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>UXSS-CHROME-03: Blob URL Cross-Origin Partition Bypass</title>
+    <link rel="stylesheet" href="../../../css/style.css">
+</head>
+<body class="test-page" style="background:#0d1117;color:#c9d1d9;">
+<div class="container">
+    <a href="../../../index.html" class="btn btn-back">&larr; Back to Suite</a>
+    <h1>Blob URL Cross-Origin Partition Bypass</h1>
+    <div class="meta">
+        <span>ID: UXSS-CHROME-03</span>
+        <span>Browsers: Chrome (pre-137), Chromium-based</span>
+        <span>Category: SOP Bypass / Cross-Origin Access</span>
+    </div>
+
+    <div class="test-section">
+        <h2>Description</h2>
+        <p>Chrome 137 introduced blob URL partitioning by Storage Key. Before this, blob URLs
+        created in one origin context could potentially be accessed cross-origin via
+        <code>window.open()</code> or iframe navigation. This test checks for pre-partition
+        behavior where a blob URL created by one origin can be opened/read by another.</p>
+        <p>Additionally tests if <code>noopener</code> enforcement on renderer-initiated
+        top-level navigations to cross-site blob URLs is properly applied.</p>
+    </div>
+
+    <div class="test-section">
+        <h2>Run Test</h2>
+        <button class="btn btn-run" onclick="runTest()">Test Blob URL Cross-Origin Access</button>
+        <button class="btn" onclick="runVariantIframe()">Variant: Blob URL in cross-origin iframe</button>
+        <button class="btn" onclick="runVariantPopup()">Variant: Blob URL via window.open</button>
+        <div id="output" class="output-box" style="margin-top:10px;"></div>
+    </div>
+</div>
+
+<script src="../../../js/utils.js"></script>
+<script>
+function runTest() {
+    const output = document.getElementById('output');
+    const info = detectBrowser();
+    output.innerHTML = '<div style="color:#d29922;">Running blob URL partition test...</div>';
+    output.innerHTML += '<div style="color:#8b949e;">Browser: ' + info.browser + ' ' + info.version + '</div>';
+
+    // Create a blob URL with sensitive content
+    const sensitiveContent = '<html><body><h1>Sensitive Data from ' + location.origin + '</h1>' +
+        '<div id="secret">SECRET_VALUE_' + Math.random().toString(36) + '</div></body></html>';
+    const blob = new Blob([sensitiveContent], { type: 'text/html' });
+    const blobUrl = URL.createObjectURL(blob);
+
+    output.innerHTML += '<div style="color:#8b949e;">Created blob URL: ' + blobUrl + '</div>';
+
+    // Test 1: Can we access blob URL from a cross-origin iframe?
+    const frame = document.createElement('iframe');
+    frame.style.width = '400px';
+    frame.style.height = '100px';
+    frame.style.border = '1px solid #30363d';
+
+    // Try navigating cross-origin frame to our blob URL
+    frame.src = blobUrl;
+    document.body.appendChild(frame);
+
+    frame.onload = function() {
+        try {
+            const innerDoc = frame.contentDocument || frame.contentWindow.document;
+            const secret = innerDoc.getElementById('secret');
+            if (secret) {
+                output.innerHTML += '<div style="color:#f85149;">Blob URL loaded and DOM accessible!</div>';
+                reportResult('output', 'Blob URL same-origin access', true,
+                    'Blob URL DOM is accessible (expected for same-origin)');
+            }
+        } catch(e) {
+            reportResult('output', 'Blob URL access', false, 'Blocked: ' + e.message);
+        }
+    };
+
+    // Test 2: Check if blob URL revocation is properly enforced
+    setTimeout(function() {
+        URL.revokeObjectURL(blobUrl);
+        output.innerHTML += '<div style="color:#8b949e;">Blob URL revoked. Testing post-revocation access...</div>';
+
+        const frame2 = document.createElement('iframe');
+        frame2.style.display = 'none';
+        frame2.src = blobUrl;
+        document.body.appendChild(frame2);
+
+        frame2.onload = function() {
+            try {
+                const doc = frame2.contentDocument;
+                if (doc && doc.body && doc.body.innerHTML.includes('SECRET_VALUE')) {
+                    reportResult('output', 'Blob URL post-revocation access', true,
+                        'Blob URL still accessible after revocation!');
+                }
+            } catch(e) {
+                reportResult('output', 'Blob URL post-revocation', false, 'Properly blocked after revocation');
+            }
+        };
+    }, 2000);
+}
+
+function runVariantIframe() {
+    const output = document.getElementById('output');
+    output.innerHTML = '<div style="color:#d29922;">Testing blob URL in cross-origin context...</div>';
+
+    // Create blob with script that tries to access opener/parent
+    const attackBlob = new Blob([
+        '<html><body><script>' +
+        'try {' +
+        '  var result = {' +
+        '    hasOpener: !!window.opener,' +
+        '    hasParent: window.parent !== window,' +
+        '    origin: location.origin,' +
+        '    blobUrl: location.href' +
+        '  };' +
+        '  document.body.textContent = JSON.stringify(result);' +
+        '  if (window.parent !== window) {' +
+        '    window.parent.postMessage({type:"blob-test", data: result}, "*");' +
+        '  }' +
+        '} catch(e) { document.body.textContent = "Error: " + e.message; }' +
+        '<\/script></body></html>'
+    ], { type: 'text/html' });
+
+    const blobUrl = URL.createObjectURL(attackBlob);
+
+    window.addEventListener('message', function handler(e) {
+        if (e.data && e.data.type === 'blob-test') {
+            output.innerHTML += '<div style="color:#58a6ff;">Blob frame reported: ' + JSON.stringify(e.data.data) + '</div>';
+            output.innerHTML += '<div style="color:#8b949e;">Origin of blob: ' + e.data.data.origin + '</div>';
+            if (e.data.data.origin === 'null') {
+                reportResult('output', 'Blob URL origin isolation', false,
+                    'Blob has null origin (opaque) - properly isolated');
+            } else {
+                reportResult('output', 'Blob URL origin isolation', true,
+                    'Blob inherits origin: ' + e.data.data.origin);
+            }
+            window.removeEventListener('message', handler);
+        }
+    });
+
+    const frame = document.createElement('iframe');
+    frame.sandbox = 'allow-scripts';
+    frame.src = blobUrl;
+    frame.style.width = '400px';
+    frame.style.height = '60px';
+    frame.style.border = '1px solid #30363d';
+    document.body.appendChild(frame);
+}
+
+function runVariantPopup() {
+    const output = document.getElementById('output');
+    output.innerHTML = '<div style="color:#d29922;">Testing blob URL via window.open...</div>';
+    output.innerHTML += '<div style="color:#d29922;">A popup will open. Check if it has opener access.</div>';
+
+    const popupBlob = new Blob([
+        '<html><body style="background:#0d1117;color:#c9d1d9;font-family:monospace;padding:20px;">' +
+        '<h2>Blob URL Popup Test</h2>' +
+        '<div id="results"></div>' +
+        '<script>' +
+        'var r = document.getElementById("results");' +
+        'r.innerHTML += "<p>Location: " + location.href + "</p>";' +
+        'r.innerHTML += "<p>Origin: " + location.origin + "</p>";' +
+        'r.innerHTML += "<p>Has opener: " + !!window.opener + "</p>";' +
+        'try { r.innerHTML += "<p>Opener origin: " + window.opener.location.origin + "</p>"; }' +
+        'catch(e) { r.innerHTML += "<p>Opener origin: BLOCKED - " + e.message + "</p>"; }' +
+        'try { r.innerHTML += "<p>Opener document.cookie: " + window.opener.document.cookie + "</p>"; }' +
+        'catch(e) { r.innerHTML += "<p>Opener cookies: BLOCKED - " + e.message + "</p>"; }' +
+        'if (window.opener) {' +
+        '  window.opener.postMessage({type:"popup-blob-test", hasAccess: true, origin: location.origin}, "*");' +
+        '}' +
+        '<\/script></body></html>'
+    ], { type: 'text/html' });
+
+    const blobUrl = URL.createObjectURL(popupBlob);
+
+    window.addEventListener('message', function handler(e) {
+        if (e.data && e.data.type === 'popup-blob-test') {
+            output.innerHTML += '<div style="color:#58a6ff;">Popup reported back: ' + JSON.stringify(e.data) + '</div>';
+            window.removeEventListener('message', handler);
+        }
+    });
+
+    const popup = window.open(blobUrl, '_blank');
+    if (!popup) {
+        output.innerHTML += '<div style="color:#f85149;">Popup blocked. Allow popups for this test.</div>';
+    } else {
+        output.innerHTML += '<div style="color:#8b949e;">Popup opened. Waiting for report...</div>';
+    }
+}
+</script>
+</body>
+</html>

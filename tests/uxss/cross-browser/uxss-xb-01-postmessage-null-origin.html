@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>UXSS-XB-01: postMessage Null Origin Confusion</title>
+    <link rel="stylesheet" href="../../../css/style.css">
+</head>
+<body class="test-page" style="background:#0d1117;color:#c9d1d9;">
+<div class="container">
+    <a href="../../../index.html" class="btn btn-back">&larr; Back to Suite</a>
+    <h1>postMessage Null Origin Confusion via Sandboxed Iframes</h1>
+    <div class="meta">
+        <span>ID: UXSS-XB-01</span>
+        <span>Browsers: All (Chrome, Safari, Firefox, Opera)</span>
+        <span>Category: SOP Bypass / Origin Confusion</span>
+    </div>
+
+    <div class="test-section">
+        <h2>Description</h2>
+        <p>Sandboxed iframes without <code>allow-same-origin</code> get a <code>null</code> origin.
+        Many applications check <code>event.origin</code> against a whitelist but fail to handle
+        <code>"null"</code> properly. Additionally, <code>data:</code> URLs and
+        <code>blob:</code> URLs in some browsers also report <code>"null"</code> origin,
+        allowing origin confusion attacks.</p>
+        <p>This tests whether different frame types can impersonate each other's origin via
+        the shared <code>"null"</code> origin value.</p>
+    </div>
+
+    <div class="test-section">
+        <h2>Run Test</h2>
+        <button class="btn btn-run" onclick="runTest()">Test Null Origin Sources</button>
+        <button class="btn" onclick="runTargetedAttack()">Simulate Origin Confusion Attack</button>
+        <div id="output" class="output-box" style="margin-top:10px;"></div>
+    </div>
+</div>
+
+<script src="../../../js/utils.js"></script>
+<script>
+function runTest() {
+    const output = document.getElementById('output');
+    const info = detectBrowser();
+    output.innerHTML = '<div style="color:#d29922;">Testing null origin sources...</div>';
+    output.innerHTML += '<div style="color:#8b949e;">Browser: ' + info.browser + ' ' + info.version + '</div>';
+
+    let results = [];
+    let pending = 4;
+
+    function checkDone() {
+        pending--;
+        if (pending <= 0) {
+            output.innerHTML += '<div style="color:#58a6ff;margin-top:10px;"><strong>Summary:</strong></div>';
+            let nullOrigins = results.filter(r => r.origin === 'null');
+            output.innerHTML += '<div style="color:#8b949e;">' + nullOrigins.length + '/' + results.length +
+                ' sources report null origin</div>';
+            if (nullOrigins.length > 1) {
+                output.innerHTML += '<div style="color:#d29922;">Multiple null-origin sources detected. ' +
+                    'Applications accepting "null" origin cannot distinguish between these sources!</div>';
+            }
+            reportResult('output', 'Null origin confusion potential', nullOrigins.length > 1,
+                nullOrigins.length + ' sources share null origin');
+        }
+    }
+
+    window.addEventListener('message', function handler(e) {
+        if (e.data && e.data.type === 'origin-test') {
+            results.push({ source: e.data.source, origin: e.origin });
+            output.innerHTML += '<div style="color:#8b949e;">Source: ' + e.data.source +
+                ' | origin: ' + e.origin + '</div>';
+            checkDone();
+        }
+    });
+
+    // Test 1: Sandboxed iframe (no allow-same-origin)
+    var f1 = document.createElement('iframe');
+    f1.sandbox = 'allow-scripts';
+    f1.srcdoc = '<script>parent.postMessage({type:"origin-test",source:"sandboxed-iframe"}, "*");<\/script>';
+    f1.style.display = 'none';
+    document.body.appendChild(f1);
+
+    // Test 2: data: URL iframe
+    var f2 = document.createElement('iframe');
+    f2.src = 'data:text/html,<script>parent.postMessage({type:"origin-test",source:"data-url"}, "*");<\/script>';
+    f2.style.display = 'none';
+    document.body.appendChild(f2);
+
+    // Test 3: blob: URL iframe
+    var blob = new Blob(['<script>parent.postMessage({type:"origin-test",source:"blob-url"}, "*");<\/script>'], {type:'text/html'});
+    var f3 = document.createElement('iframe');
+    f3.src = URL.createObjectURL(blob);
+    f3.style.display = 'none';
+    document.body.appendChild(f3);
+
+    // Test 4: srcdoc with sandbox
+    var f4 = document.createElement('iframe');
+    f4.sandbox = 'allow-scripts';
+    f4.srcdoc = '<script>parent.postMessage({type:"origin-test",source:"sandbox-srcdoc"}, "*");<\/script>';
+    f4.style.display = 'none';
+    document.body.appendChild(f4);
+
+    // Timeout fallback
+    setTimeout(function() {
+        if (pending > 0) {
+            output.innerHTML += '<div style="color:#8b949e;">' + pending + ' sources did not respond (may be blocked).</div>';
+            pending = 0;
+            checkDone();
+        }
+    }, 5000);
+}
+
+function runTargetedAttack() {
+    const output = document.getElementById('output');
+    output.innerHTML = '<div style="color:#d29922;">Simulating origin confusion attack...</div>';
+
+    // Simulate a vulnerable postMessage handler
+    output.innerHTML += '<div style="color:#8b949e;">Setting up vulnerable message handler that accepts "null" origin...</div>';
+
+    let attackSucceeded = false;
+
+    // This simulates what a vulnerable application might do
+    function vulnerableHandler(e) {
+        // BAD: Many apps do this
+        if (e.origin === 'null' || e.origin === location.origin) {
+            if (e.data && e.data.type === 'auth-token') {
+                output.innerHTML += '<div style="color:#f85149;font-weight:bold;">Vulnerable handler accepted message from: ' +
+                    e.origin + '</div>';
+                output.innerHTML += '<div style="color:#f85149;">Received "auth token": ' + e.data.token + '</div>';
+                attackSucceeded = true;
+            }
+        }
+    }
+
+    window.addEventListener('message', vulnerableHandler);
+
+    // Attacker iframe (sandboxed, gets null origin)
+    var attackFrame = document.createElement('iframe');
+    attackFrame.sandbox = 'allow-scripts';
+    attackFrame.srcdoc = '<script>' +
+        'setTimeout(function() {' +
+        '  parent.postMessage({type:"auth-token", token:"STOLEN_TOKEN_12345"}, "*");' +
+        '}, 500);' +
+        '<\/script>';
+    attackFrame.style.display = 'none';
+    document.body.appendChild(attackFrame);
+
+    setTimeout(function() {
+        window.removeEventListener('message', vulnerableHandler);
+        reportResult('output', 'Null origin confusion attack', attackSucceeded,
+            attackSucceeded ? 'Sandboxed iframe successfully impersonated null origin' :
+            'Attack did not succeed');
+        output.innerHTML += '<div style="color:#d29922;margin-top:10px;">Lesson: Never trust messages from "null" origin. ' +
+            'Always validate specific expected origins.</div>';
+    }, 2000);
+}
+</script>
+</body>
+</html>

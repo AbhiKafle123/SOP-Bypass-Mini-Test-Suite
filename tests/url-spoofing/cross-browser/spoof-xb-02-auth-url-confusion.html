@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>SPOOF-XB-02: URL Userinfo (@) Domain Confusion</title>
+    <link rel="stylesheet" href="../../../css/style.css">
+</head>
+<body class="test-page" style="background:#0d1117;color:#c9d1d9;">
+<div class="container">
+    <a href="../../../index.html" class="btn btn-back">&larr; Back to Suite</a>
+    <h1>URL Userinfo (@) Domain Confusion</h1>
+    <div class="meta">
+        <span>ID: SPOOF-XB-02</span>
+        <span>Browsers: Firefox, Opera (most susceptible), all browsers vary</span>
+        <span>Category: URL Spoofing</span>
+    </div>
+
+    <div class="test-section">
+        <h2>Description</h2>
+        <p>The URL spec allows <code>user:pass@host</code> format. A URL like
+        <code>https://google.com@evil.com</code> actually connects to <code>evil.com</code>
+        with the username "google.com". Some browsers display the full URL including the
+        userinfo, which can confuse users into thinking they're on google.com.</p>
+    </div>
+
+    <div class="test-section">
+        <h2>Run Test</h2>
+        <button class="btn btn-run" onclick="runTest()">Analyze Userinfo URL Handling</button>
+        <button class="btn" onclick="runNavigationTest()">Test Navigation with Userinfo</button>
+        <div id="output" class="output-box" style="margin-top:10px;"></div>
+    </div>
+</div>
+
+<script src="../../../js/utils.js"></script>
+<script>
+function runTest() {
+    const output = document.getElementById('output');
+    const info = detectBrowser();
+    output.innerHTML = '<div style="color:#d29922;">Analyzing userinfo URL handling...</div>';
+    output.innerHTML += '<div style="color:#8b949e;">Browser: ' + info.browser + ' ' + info.version + '</div>';
+
+    const testUrls = [
+        { url: 'https://google.com@' + CONFIG.XORIGIN_DOMAIN + '/', desc: 'google.com as username' },
+        { url: 'https://secure:login@' + CONFIG.XORIGIN_DOMAIN + '/', desc: 'user:pass format' },
+        { url: 'https://www.paypal.com%40' + CONFIG.XORIGIN_DOMAIN + '/', desc: 'Encoded @ (%40)' },
+        { url: 'https://accounts.google.com%2F@' + CONFIG.XORIGIN_DOMAIN + '/', desc: 'Encoded / before @' },
+        { url: 'https://login:password@' + CONFIG.XORIGIN_DOMAIN + '/', desc: 'Standard auth URL' },
+    ];
+
+    testUrls.forEach(function(tc) {
+        try {
+            const parsed = new URL(tc.url);
+            output.innerHTML += '<div style="margin:8px 0;padding:8px;background:#161b22;border-radius:4px;">' +
+                '<div style="color:#58a6ff;">' + tc.desc + '</div>' +
+                '<div style="color:#d29922;">Input: ' + tc.url + '</div>' +
+                '<div style="color:#8b949e;">Actual host: ' + parsed.hostname + '</div>' +
+                '<div style="color:#8b949e;">Username: ' + parsed.username + '</div>' +
+                '<div style="color:#8b949e;">Password: ' + parsed.password + '</div>' +
+                '<div style="color:#8b949e;">Origin: ' + parsed.origin + '</div>' +
+                '</div>';
+        } catch(e) {
+            output.innerHTML += '<div style="color:#8b949e;">' + tc.desc + ': Invalid URL - ' + e.message + '</div>';
+        }
+    });
+
+    output.innerHTML += '<div style="color:#d29922;margin-top:15px;">Key check: Does the address bar prominently show the actual host (' + CONFIG.XORIGIN_DOMAIN + ') or the username (google.com)?</div>';
+    reportResult('output', 'Userinfo URL confusion', false,
+        'URL parsing analysis complete. Visual inspection of address bar needed for each browser.');
+}
+
+function runNavigationTest() {
+    const output = document.getElementById('output');
+    output.innerHTML = '<div style="color:#d29922;">Testing navigation with userinfo URLs...</div>';
+    output.innerHTML += '<div style="color:#d29922;">Some browsers block userinfo in HTTP(S) URLs. Testing...</div>';
+
+    const testUrl = 'https://google.com@' + CONFIG.XORIGIN_DOMAIN + '/';
+
+    // Try via link click
+    const link = document.createElement('a');
+    link.href = testUrl;
+    link.target = '_blank';
+    link.textContent = 'Click to test: ' + testUrl;
+    link.style.cssText = 'color:#58a6ff;display:block;margin:10px 0;';
+    output.appendChild(link);
+
+    // Try via window.open
+    output.innerHTML += '<div style="color:#8b949e;margin-top:10px;">Attempting window.open...</div>';
+    try {
+        const popup = window.open(testUrl, '_blank', 'width=600,height=400');
+        if (popup) {
+            output.innerHTML += '<div style="color:#d29922;">Popup opened. Check the address bar.</div>';
+            setTimeout(function() { try { popup.close(); } catch(e) {} }, 10000);
+        } else {
+            output.innerHTML += '<div style="color:#8b949e;">Popup blocked.</div>';
+        }
+    } catch(e) {
+        output.innerHTML += '<div style="color:#3fb950;">window.open with userinfo blocked: ' + e.message + '</div>';
+    }
+
+    // Test fetch behavior
+    output.innerHTML += '<div style="color:#8b949e;margin-top:10px;">Testing fetch with userinfo URL...</div>';
+    fetch(testUrl, { mode: 'no-cors' }).then(function(r) {
+        output.innerHTML += '<div style="color:#d29922;">fetch succeeded (status: ' + r.status + ')</div>';
+    }).catch(function(e) {
+        output.innerHTML += '<div style="color:#8b949e;">fetch blocked: ' + e.message + '</div>';
+    });
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>SPOOF-FIREFOX-01: Firefox iOS Long Hostname Address Bar Spoof</title>
+    <link rel="stylesheet" href="../../../css/style.css">
+</head>
+<body class="test-page" style="background:#0d1117;color:#c9d1d9;">
+<div class="container">
+    <a href="../../../index.html" class="btn btn-back">&larr; Back to Suite</a>
+    <h1>Firefox iOS Long Hostname Address Bar Spoofing</h1>
+    <div class="meta">
+        <span>ID: SPOOF-FIREFOX-01</span>
+        <span>CVE: CVE-2025-23109</span>
+        <span>Browsers: Firefox for iOS (pre-134)</span>
+        <span>Category: URL Spoofing</span>
+    </div>
+
+    <div class="test-section">
+        <h2>Description</h2>
+        <p>Firefox for iOS versions below 134 allowed attackers to exploit long hostnames in URLs,
+        obscuring the website's actual host. By using an extremely long subdomain, the real
+        domain is pushed out of the visible portion of the address bar.</p>
+    </div>
+
+    <div class="test-section">
+        <h2>Technique</h2>
+        <div class="code-block">// The attack uses a domain with very long subdomains:
+// https://secure-login-google-com-verify-account.very-long-sub.attacker.com
+//
+// In the address bar, only the beginning is visible:
+// "secure-login-google-com-verify-acc..."
+//
+// The actual domain (attacker.com) is hidden by truncation.
+
+// Variant: Use multiple levels of subdomains
+// https://accounts.google.com.secure-login.verify.attacker.com
+
+// DNS Setup required:
+// *.abhikafle.com.np → points to your server
+// So: accounts.google.com.secure.abhikafle.com.np works</div>
+    </div>
+
+    <div class="test-section">
+        <h2>Run Test</h2>
+        <button class="btn btn-run" onclick="runTest()">Analyze URL Display Behavior</button>
+        <button class="btn" onclick="generateSpoofUrls()">Generate Spoof URLs</button>
+        <div id="output" class="output-box" style="margin-top:10px;"></div>
+    </div>
+</div>
+
+<script src="../../../js/utils.js"></script>
+<script>
+function runTest() {
+    const output = document.getElementById('output');
+    const info = detectBrowser();
+    output.innerHTML = '<div style="color:#d29922;">Analyzing URL display behavior...</div>';
+    output.innerHTML += '<div style="color:#8b949e;">Browser: ' + info.browser + ' ' + info.version + '</div>';
+    output.innerHTML += '<div style="color:#8b949e;">Mobile: ' + info.isMobile + '</div>';
+
+    // Test how the browser handles long URLs
+    const testCases = [
+        {
+            name: 'Long subdomain mimicking Google',
+            url: 'https://accounts-google-com-signin-v2-identifier-continue.secure-verify.' + CONFIG.PRIMARY_DOMAIN + '/login',
+        },
+        {
+            name: 'Multiple subdomains mimicking Apple',
+            url: 'https://appleid.apple.com.verify.secure-account.' + CONFIG.PRIMARY_DOMAIN + '/iforgot',
+        },
+        {
+            name: 'Long path mimicking Microsoft',
+            url: 'https://' + CONFIG.PRIMARY_DOMAIN + '/login.microsoftonline.com/common/oauth2/authorize?client_id=fake',
+        },
+        {
+            name: 'Padding with trusted-looking text',
+            url: 'https://' + CONFIG.PRIMARY_DOMAIN + '/' + 'secure-banking-portal-'.repeat(10) + 'login',
+        }
+    ];
+
+    testCases.forEach(function(tc) {
+        try {
+            const parsed = new URL(tc.url);
+            output.innerHTML += '<div style="color:#58a6ff;margin-top:8px;">' + tc.name + ':</div>';
+            output.innerHTML += '<div style="color:#8b949e;">  Full URL: ' + tc.url + '</div>';
+            output.innerHTML += '<div style="color:#8b949e;">  Hostname: ' + parsed.hostname + '</div>';
+            output.innerHTML += '<div style="color:#8b949e;">  Hostname length: ' + parsed.hostname.length + ' chars</div>';
+
+            // Estimate what would be visible in typical address bar (approx 40 chars on mobile)
+            const visible40 = tc.url.replace('https://', '').substring(0, 40);
+            const visible60 = tc.url.replace('https://', '').substring(0, 60);
+            output.innerHTML += '<div style="color:#d29922;">  Visible (40ch mobile): ' + visible40 + '...</div>';
+            output.innerHTML += '<div style="color:#d29922;">  Visible (60ch desktop): ' + visible60 + '...</div>';
+        } catch(e) {
+            output.innerHTML += '<div style="color:#8b949e;">Invalid URL: ' + e.message + '</div>';
+        }
+    });
+
+    reportResult('output', 'Long hostname spoofing', false,
+        'URL analysis complete. Actual domain (' + CONFIG.PRIMARY_DOMAIN + ') may be hidden on mobile browsers with narrow address bars.');
+}
+
+function generateSpoofUrls() {
+    const output = document.getElementById('output');
+    output.innerHTML = '<div style="color:#d29922;">Generating spoof URL examples...</div>';
+    output.innerHTML += '<div style="color:#8b949e;font-size:0.85em;">These URLs require wildcard DNS (*.abhikafle.com.np) pointing to your server.</div>';
+
+    const targets = [
+        { brand: 'Google', prefix: 'accounts.google.com.signin' },
+        { brand: 'Facebook', prefix: 'www.facebook.com.login' },
+        { brand: 'Apple', prefix: 'appleid.apple.com.iforgot' },
+        { brand: 'Microsoft', prefix: 'login.microsoftonline.com.oauth2' },
+        { brand: 'PayPal', prefix: 'www.paypal.com.signin' },
+        { brand: 'Netflix', prefix: 'www.netflix.com.login' },
+    ];
+
+    targets.forEach(function(target) {
+        const spoofUrl = 'https://' + target.prefix + '.secure.' + CONFIG.PRIMARY_DOMAIN + '/';
+        output.innerHTML += '<div style="margin:5px 0;">' +
+            '<span style="color:#58a6ff;">' + target.brand + ':</span> ' +
+            '<a href="' + spoofUrl + '" target="_blank" style="color:#8b949e;word-break:break-all;">' + spoofUrl + '</a></div>';
+    });
+
+    output.innerHTML += '<div style="color:#d29922;margin-top:15px;">DNS Setup needed:</div>';
+    output.innerHTML += '<div class="code-block" style="margin-top:5px;">; Wildcard A record\n*.' + CONFIG.PRIMARY_DOMAIN + '  A  [YOUR_SERVER_IP]</div>';
+}
+</script>
+</body>
+</html>
