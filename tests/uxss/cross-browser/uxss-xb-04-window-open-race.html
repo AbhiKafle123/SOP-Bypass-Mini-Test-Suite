@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>UXSS-XB-04: window.open Race Condition Document Write</title>
+    <link rel="stylesheet" href="../../../css/style.css">
+</head>
+<body class="test-page" style="background:#0d1117;color:#c9d1d9;">
+<div class="container">
+    <a href="../../../index.html" class="btn btn-back">&larr; Back to Suite</a>
+    <h1>window.open() + document.write() Race Condition</h1>
+    <div class="meta">
+        <span>ID: UXSS-XB-04</span>
+        <span>Browsers: All (timing-dependent)</span>
+        <span>Category: UXSS / Race Condition</span>
+    </div>
+
+    <div class="test-section">
+        <h2>Description</h2>
+        <p>Classic UXSS technique updated for modern browsers. Opens a popup to a cross-origin
+        URL, then immediately attempts <code>document.write()</code> or <code>document.open()</code>
+        before the navigation commits. If the timing is right, the written content executes
+        in the context of the target origin.</p>
+        <p>Modern variant: uses <code>history.pushState</code> race, Service Worker timing,
+        or <code>about:blank</code> intermediate state exploitation.</p>
+    </div>
+
+    <div class="test-section">
+        <h2>Run Test</h2>
+        <p style="color:#d29922;font-size:0.85em;">Popup blocker may interfere. Allow popups for this domain.</p>
+        <button class="btn btn-run" onclick="runTest()">Test Classic Race</button>
+        <button class="btn" onclick="runVariantImmediate()">Variant: Immediate write</button>
+        <button class="btn" onclick="runVariantDelay()">Variant: Delayed write (5s)</button>
+        <button class="btn" onclick="runVariantAboutBlank()">Variant: about:blank intermediate</button>
+        <div id="output" class="output-box" style="margin-top:10px;"></div>
+    </div>
+</div>
+
+<script src="../../../js/utils.js"></script>
+<script>
+function runTest() {
+    const output = document.getElementById('output');
+    const info = detectBrowser();
+    output.innerHTML = '<div style="color:#d29922;">Running window.open race condition test...</div>';
+    output.innerHTML += '<div style="color:#8b949e;">Browser: ' + info.browser + ' ' + info.version + '</div>';
+
+    const targetUrl = CONFIG.XORIGIN_ORIGIN + '/';
+    let popup;
+    try {
+        popup = window.open(targetUrl);
+    } catch(e) {
+        output.innerHTML += '<div style="color:#f85149;">Failed to open popup: ' + e.message + '</div>';
+        return;
+    }
+
+    if (!popup) {
+        output.innerHTML += '<div style="color:#f85149;">Popup blocked. Please allow popups.</div>';
+        return;
+    }
+
+    // Attempt immediate document.write
+    try {
+        popup.document.write('<h1>UXSS Test - Written by opener</h1>');
+        output.innerHTML += '<div style="color:#f85149;font-weight:bold;">document.write succeeded immediately!</div>';
+        reportResult('output', 'window.open race (immediate)', true,
+            'Wrote to popup before navigation committed');
+    } catch(e) {
+        output.innerHTML += '<div style="color:#3fb950;">Immediate write blocked: ' + e.message + '</div>';
+    }
+
+    // Try after short delay
+    setTimeout(function() {
+        try {
+            popup.document.open();
+            popup.document.write('<h1>UXSS - Delayed write</h1>');
+            popup.document.close();
+            output.innerHTML += '<div style="color:#f85149;">Delayed document.write succeeded!</div>';
+            reportResult('output', 'window.open race (delayed)', true, 'Wrote to popup after 100ms');
+        } catch(e) {
+            output.innerHTML += '<div style="color:#3fb950;">Delayed write blocked: ' + e.message + '</div>';
+            reportResult('output', 'window.open race condition', false, 'All write attempts blocked by SOP');
+        }
+        try { popup.close(); } catch(e) {}
+    }, 100);
+}
+
+function runVariantImmediate() {
+    const output = document.getElementById('output');
+    output.innerHTML = '<div style="color:#d29922;">Testing immediate write with various methods...</div>';
+
+    const popup = window.open(CONFIG.XORIGIN_ORIGIN + '/');
+    if (!popup) { output.innerHTML += '<div style="color:#f85149;">Popup blocked.</div>'; return; }
+
+    const methods = [
+        function() { popup.document.write('test'); return 'document.write'; },
+        function() { popup.document.title = 'test'; return 'document.title'; },
+        function() { popup.document.body.innerHTML = 'test'; return 'body.innerHTML'; },
+        function() { popup.eval('1'); return 'eval'; },
+        function() { popup.location = 'javascript:void(document.title="test")'; return 'javascript: URI'; },
+    ];
+
+    methods.forEach(function(method) {
+        try {
+            const name = method();
+            output.innerHTML += '<div style="color:#f85149;">Succeeded: ' + name + '</div>';
+        } catch(e) {
+            output.innerHTML += '<div style="color:#3fb950;">Blocked: ' + e.message + '</div>';
+        }
+    });
+
+    setTimeout(function() { try { popup.close(); } catch(e) {} }, 3000);
+}
+
+function runVariantDelay() {
+    const output = document.getElementById('output');
+    output.innerHTML = '<div style="color:#d29922;">Testing delayed write (5s)...</div>';
+
+    const popup = window.open(CONFIG.XORIGIN_ORIGIN + '/');
+    if (!popup) { output.innerHTML += '<div style="color:#f85149;">Popup blocked.</div>'; return; }
+
+    setTimeout(function() {
+        try {
+            popup.document.write('<h1>Written after 5s delay</h1>');
+            reportResult('output', 'Delayed (5s) document.write', true, 'Cross-origin write succeeded after delay');
+        } catch(e) {
+            reportResult('output', 'Delayed (5s) document.write', false, 'Blocked: ' + e.message);
+        }
+        try { popup.close(); } catch(e) {}
+    }, 5000);
+}
+
+function runVariantAboutBlank() {
+    const output = document.getElementById('output');
+    output.innerHTML = '<div style="color:#d29922;">Testing about:blank intermediate state...</div>';
+
+    // Open about:blank first, write content, then navigate
+    const popup = window.open('about:blank');
+    if (!popup) { output.innerHTML += '<div style="color:#f85149;">Popup blocked.</div>'; return; }
+
+    try {
+        // Write to about:blank (this should work - same origin)
+        popup.document.write('<html><body><h1>Content from opener</h1>' +
+            '<script>var openerOrigin = "' + location.origin + '";<\/script></body></html>');
+        popup.document.close();
+        output.innerHTML += '<div style="color:#8b949e;">Wrote to about:blank popup (expected).</div>';
+
+        // Now navigate to cross-origin
+        popup.location = CONFIG.XORIGIN_ORIGIN + '/';
+
+        // Check if our written content persists
+        setTimeout(function() {
+            try {
+                const title = popup.document.title;
+                output.innerHTML += '<div style="color:#8b949e;">Popup title after navigation: ' + title + '</div>';
+                reportResult('output', 'about:blank intermediate', true,
+                    'Could read popup after cross-origin navigation');
+            } catch(e) {
+                reportResult('output', 'about:blank intermediate', false,
+                    'Cross-origin access properly blocked after navigation: ' + e.message);
+            }
+            try { popup.close(); } catch(e) {}
+        }, 3000);
+    } catch(e) {
+        reportResult('output', 'about:blank intermediate', false, 'Error: ' + e.message);
+    }
+}
+</script>
+</body>
+</html>

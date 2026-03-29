@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>SPOOF-XB-01: Meta Refresh Rapid Redirect Address Bar Race</title>
+    <link rel="stylesheet" href="../../../css/style.css">
+</head>
+<body class="test-page" style="background:#0d1117;color:#c9d1d9;">
+<div class="container">
+    <a href="../../../index.html" class="btn btn-back">&larr; Back to Suite</a>
+    <h1>Meta Refresh Rapid Redirect Address Bar Race</h1>
+    <div class="meta">
+        <span>ID: SPOOF-XB-01</span>
+        <span>Browsers: All (timing-dependent)</span>
+        <span>Category: URL Spoofing / Race Condition</span>
+    </div>
+
+    <div class="test-section">
+        <h2>Description</h2>
+        <p>Rapid <code>&lt;meta http-equiv="refresh"&gt;</code> redirects can cause the
+        address bar to lag behind the actual page content. The page shows content from
+        one URL while the address bar still displays a previous URL in the redirect chain.</p>
+    </div>
+
+    <div class="test-section">
+        <h2>Run Test</h2>
+        <button class="btn btn-run" onclick="runTest()">Test Meta Refresh Race</button>
+        <button class="btn" onclick="runJSRedirectRace()">Variant: JS Redirect Race</button>
+        <button class="btn" onclick="runHistoryRace()">Variant: History API Race</button>
+        <div id="output" class="output-box" style="margin-top:10px;"></div>
+    </div>
+</div>
+
+<script src="../../../js/utils.js"></script>
+<script>
+function runTest() {
+    const output = document.getElementById('output');
+    const info = detectBrowser();
+    output.innerHTML = '<div style="color:#d29922;">Testing meta refresh race condition...</div>';
+    output.innerHTML += '<div style="color:#8b949e;">Browser: ' + info.browser + ' ' + info.version + '</div>';
+
+    // Create an iframe that does rapid meta refreshes
+    const frame = document.createElement('iframe');
+    frame.style.cssText = 'width:100%;height:200px;border:1px solid #30363d;margin-top:10px;';
+
+    // Page 1: meta refresh to page 2 after 0 seconds
+    const page1 = '<!DOCTYPE html><html><head>' +
+        '<meta http-equiv="refresh" content="0;url=data:text/html,' +
+        encodeURIComponent('<html><head><meta http-equiv="refresh" content="0;url=about:blank"></head><body>Page 2 - check address bar</body></html>') +
+        '"></head><body style="background:#161b22;color:#c9d1d9;">Page 1 - Redirecting...</body></html>';
+
+    const blob = new Blob([page1], { type: 'text/html' });
+    frame.src = URL.createObjectURL(blob);
+
+    document.body.appendChild(frame);
+
+    // Monitor the frame's location
+    let checks = 0;
+    const interval = setInterval(function() {
+        checks++;
+        try {
+            output.innerHTML += '<div style="color:#8b949e;">Check ' + checks + ': ' + frame.contentWindow.location.href.substring(0, 80) + '</div>';
+        } catch(e) {
+            output.innerHTML += '<div style="color:#8b949e;">Check ' + checks + ': access blocked</div>';
+        }
+        if (checks > 10) {
+            clearInterval(interval);
+            reportResult('output', 'Meta refresh race', false,
+                'Monitored ' + checks + ' state changes. Manual inspection of address bar needed.');
+        }
+    }, 100);
+}
+
+function runJSRedirectRace() {
+    const output = document.getElementById('output');
+    output.innerHTML = '<div style="color:#d29922;">Testing JavaScript redirect race...</div>';
+
+    const frame = document.createElement('iframe');
+    frame.style.cssText = 'width:100%;height:200px;border:1px solid #30363d;margin-top:10px;';
+    frame.srcdoc = '<html><body style="background:#161b22;color:#c9d1d9;">' +
+        '<script>' +
+        'var count = 0;' +
+        'function bounce() {' +
+        '  count++;' +
+        '  document.body.innerHTML = "<h2>Redirect #" + count + "</h2><p>URL: " + location.href.substring(0,50) + "</p>";' +
+        '  if (count < 20) {' +
+        '    history.pushState({c:count}, "", "/redirect-" + count);' +
+        '    setTimeout(bounce, 50);' +
+        '  } else {' +
+        '    document.body.innerHTML += "<p style=color:#3fb950>Done. Final URL: " + location.href + "</p>";' +
+        '  }' +
+        '}' +
+        'bounce();' +
+        '<\/script></body></html>';
+
+    document.body.appendChild(frame);
+
+    setTimeout(function() {
+        reportResult('output', 'JS redirect race', false,
+            'Rapid pushState redirects completed. Check if address bar kept up.');
+    }, 3000);
+}
+
+function runHistoryRace() {
+    const output = document.getElementById('output');
+    output.innerHTML = '<div style="color:#d29922;">Testing history API race condition...</div>';
+
+    // Rapidly alternate between pushState and popstate
+    const original = location.href;
+    let count = 0;
+
+    function rapidHistory() {
+        if (count >= 30) {
+            output.innerHTML += '<div style="color:#8b949e;">Completed 30 rapid history operations.</div>';
+            output.innerHTML += '<div style="color:#8b949e;">Final URL: ' + location.href + '</div>';
+            // Cleanup
+            history.replaceState(null, '', original.split('?')[0].split('#')[0]);
+            reportResult('output', 'History API race', false,
+                'Address bar should match actual URL. Visual inspection needed.');
+            return;
+        }
+
+        count++;
+        try {
+            if (count % 2 === 0) {
+                history.pushState({n: count}, '', '/state-' + count);
+            } else {
+                history.replaceState({n: count}, '', '/replaced-' + count);
+            }
+        } catch(e) {}
+
+        requestAnimationFrame(rapidHistory);
+    }
+
+    rapidHistory();
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SOP Bypass Mini Test Suite V2.0 - abhikafle.com.np</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header>
+    <div class="container">
+        <h1>SOP Bypass Mini Test Suite V2.0
+            <small>Browser Security Research by Abhi Kafle | abhikafle.com.np</small>
+        </h1>
+        <div class="browser-info" id="browser-info">Detecting browser...</div>
+    </div>
+</header>
+
+<div class="container">
+
+    <p style="color:#8b949e;margin-bottom:20px;font-size:0.9em;">
+        Open-source browser security research suite testing SOP bypasses, UXSS, and URL spoofing
+        across modern browsers. Cross-origin target: <strong>ebniw.com</strong>.
+        Original suite by Rafay Baloch; V2.0 expanded with 2023-2026 CVEs and techniques.
+    </p>
+
+    <!-- Filters -->
+    <div class="filters">
+        <button class="filter-btn active" onclick="filterTests('all')">All Tests</button>
+        <button class="filter-btn" onclick="filterTests('uxss')">UXSS / SOP Bypass</button>
+        <button class="filter-btn" onclick="filterTests('spoof')">URL Spoofing</button>
+        <button class="filter-btn" onclick="filterTests('chrome')">Chrome</button>
+        <button class="filter-btn" onclick="filterTests('safari')">Safari</button>
+        <button class="filter-btn" onclick="filterTests('firefox')">Firefox</button>
+        <button class="filter-btn" onclick="filterTests('opera')">Opera</button>
+        <button class="filter-btn" onclick="filterTests('cross-browser')">Cross-Browser</button>
+        <button class="filter-btn" onclick="filterTests('legacy')">Legacy (V1.0)</button>
+    </div>
+
+    <!-- UXSS Section -->
+    <h2 class="section-title" id="section-uxss">UXSS / SOP Bypass Tests</h2>
+    <div class="test-grid" id="grid-uxss">
+
+        <!-- Chrome UXSS -->
+        <div class="test-card" data-tags="uxss chrome" data-browsers="chrome opera edge">
+            <div class="status-indicator"></div>
+            <div class="test-id">UXSS-CHROME-01</div>
+            <h3>Navigation API entries() Cross-Origin Leak</h3>
+            <div class="description">Tests if navigation.entries() leaks cross-origin URL history from iframes navigated to about:blank. Based on CVE-2022-4908 variant.</div>
+            <div class="tags">
+                <span class="tag tag-chrome">Chrome</span>
+                <span class="tag tag-opera">Opera</span>
+                <span class="tag tag-cve">CVE-2022-4908</span>
+                <span class="tag tag-uxss">UXSS</span>
+            </div>
+            <div class="actions">
+                <a href="tests/uxss/chrome/uxss-chrome-01-navigation-api-entries.html" class="btn btn-run">Run Test</a>
+            </div>
+        </div>
+
+        <div class="test-card" data-tags="uxss chrome" data-browsers="chrome opera edge">
+            <div class="status-indicator"></div>
+            <div class="test-id">UXSS-CHROME-02</div>
+            <h3>Link Header Referrer Policy Cross-Origin Leak</h3>
+            <div class="description">Chrome-specific: Link HTTP headers on sub-resources with referrerpolicy=unsafe-url leak full query params including OAuth tokens. Actively exploited in wild.</div>
+            <div class="tags">
+                <span class="tag tag-chrome">Chrome</span>
+                <span class="tag tag-cve">CVE-2025-4664</span>
+                <span class="tag tag-uxss">Data Leak</span>
+            </div>
+            <div class="actions">
+                <a href="tests/uxss/chrome/uxss-chrome-02-link-header-referrer-leak.html" class="btn btn-run">Run Test</a>
+            </div>
+        </div>
+
+        <div class="test-card" data-tags="uxss chrome" data-browsers="chrome opera edge">
+            <div class="status-indicator"></div>
+            <div class="test-id">UXSS-CHROME-03</div>
+            <h3>Blob URL Cross-Origin Partition Bypass</h3>
+            <div class="description">Tests pre-Chrome 137 blob URL partitioning behavior. Blob URLs created in one origin could be accessed cross-origin via window.open or iframe navigation.</div>
+            <div class="tags">
+                <span class="tag tag-chrome">Chrome</span>
+                <span class="tag tag-uxss">SOP Bypass</span>
+            </div>
+            <div class="actions">
+                <a href="tests/uxss/chrome/uxss-chrome-03-blob-url-partition-bypass.html" class="btn btn-run">Run Test</a>
+            </div>
+        </div>
+
+        <!-- Safari UXSS -->
+        <div class="test-card" data-tags="uxss safari" data-browsers="safari ios">
+            <div class="status-indicator"></div>
+            <div class="test-id">UXSS-SAFARI-01</div>
+            <h3>WebKit NavigateEvent.canIntercept SOP Bypass</h3>
+            <div class="description">canIntercept returns true for same-site cross-port navigations. Allows intercepting navigations that should cross origin boundary. Public PoC available.</div>
+            <div class="tags">
+                <span class="tag tag-safari">Safari</span>
+                <span class="tag tag-cve">CVE-2026-20643</span>
+                <span class="tag tag-uxss">SOP Bypass</span>
+            </div>
+            <div class="actions">
+                <a href="tests/uxss/safari/uxss-safari-01-navigation-api-sop-bypass.html" class="btn btn-run">Run Test</a>
+            </div>
+        </div>
+
+        <div class="test-card" data-tags="uxss safari" data-browsers="safari ios">
+            <div class="status-indicator"></div>
+            <div class="test-id">UXSS-SAFARI-02</div>
+            <h3>WebKit iframe Subframe Counter Overflow</h3>
+            <div class="description">Deeply nested iframes overflow WebKit's subframe counter. about:srcdoc inherits parent security context from cross-origin page. Project Zero #2099/#2100.</div>
+            <div class="tags">
+                <span class="tag tag-safari">Safari</span>
+                <span class="tag tag-uxss">UXSS</span>
+            </div>
+            <div class="actions">
+                <a href="tests/uxss/safari/uxss-safari-02-iframe-subframe-overflow.html" class="btn btn-run">Run Test</a>
+            </div>
+        </div>
+
+        <!-- Firefox UXSS -->
+        <div class="test-card" data-tags="uxss firefox" data-browsers="firefox">
+            <div class="status-indicator"></div>
+            <div class="test-id">UXSS-FIREFOX-01</div>
+            <h3>Canvas2D Same-Origin Policy Bypass</h3>
+            <div class="description">Bypasses canvas taint check to read cross-origin image pixel data via Canvas2D. Normally blocked by "tainted canvas" security. Found by Tom Van Goethem.</div>
+            <div class="tags">
+                <span class="tag tag-firefox">Firefox</span>
+                <span class="tag tag-cve">CVE-2025-9180</span>
+                <span class="tag tag-uxss">SOP Bypass</span>
+            </div>
+            <div class="actions">
+                <a href="tests/uxss/firefox/uxss-firefox-01-canvas2d-sop-bypass.html" class="btn btn-run">Run Test</a>
+            </div>
+        </div>
+
+        <!-- Opera UXSS -->
+        <div class="test-card" data-tags="uxss opera" data-browsers="opera samsung">
+            <div class="status-indicator"></div>
+            <div class="test-id">UXSS-OPERA-01</div>
+            <h3>Android Intent Scheme UXSS</h3>
+            <div class="description">Exported Android activities with intent filters load javascript: URIs into current tab context. Samsung CVE-2025-58485 pattern applied to Opera.</div>
+            <div class="tags">
+                <span class="tag tag-opera">Opera</span>
+                <span class="tag tag-mobile">Mobile</span>
+                <span class="tag tag-cve">CVE-2025-58485</span>
+                <span class="tag tag-uxss">UXSS</span>
+            </div>
+            <div class="actions">
+                <a href="tests/uxss/opera/uxss-opera-01-intent-url-uxss.html" class="btn btn-run">Run Test</a>
+            </div>
+        </div>
+
+        <!-- Cross-Browser UXSS -->
+        <div class="test-card" data-tags="uxss cross-browser" data-browsers="all">
+            <div class="status-indicator"></div>
+            <div class="test-id">UXSS-XB-01</div>
+            <h3>postMessage Null Origin Confusion</h3>
+            <div class="description">Sandboxed iframes, data: URLs, and blob: URLs all report "null" origin. Applications accepting null origin cannot distinguish legitimate from malicious sources.</div>
+            <div class="tags">
+                <span class="tag tag-all">All Browsers</span>
+                <span class="tag tag-uxss">Origin Confusion</span>
+            </div>
+            <div class="actions">
+                <a href="tests/uxss/cross-browser/uxss-xb-01-postmessage-null-origin.html" class="btn btn-run">Run Test</a>
+            </div>
+        </div>
+
+        <div class="test-card" data-tags="uxss cross-browser" data-browsers="all">
+            <div class="status-indicator"></div>
+            <div class="test-id">UXSS-XB-02</div>
+            <h3>iframe Sandbox allow-scripts + allow-same-origin Escape</h3>
+            <div class="description">Iframes with both allow-scripts and allow-same-origin can remove their own sandbox attribute via parent DOM access, escaping the sandbox entirely.</div>
+            <div class="tags">
+                <span class="tag tag-all">All Browsers</span>
+                <span class="tag tag-uxss">Sandbox Escape</span>
+            </div>
+            <div class="actions">
+                <a href="tests/uxss/cross-browser/uxss-xb-02-sandbox-escape.html" class="btn btn-run">Run Test</a>
+            </div>
+        </div>
+
+        <div class="test-card" data-tags="uxss cross-browser" data-browsers="all">
+            <div class="status-indicator"></div>
+            <div class="test-id">UXSS-XB-03</div>
+            <h3>Performance API Cross-Origin Timing Leak</h3>
+            <div class="description">Resource Timing API leaks cross-origin information (response size, redirect info, timing) without Timing-Allow-Origin headers. Side-channel attack vector.</div>
+            <div class="tags">
+                <span class="tag tag-all">All Browsers</span>
+                <span class="tag tag-uxss">Info Leak</span>
+            </div>
+            <div class="actions">
+                <a href="tests/uxss/cross-browser/uxss-xb-03-performance-timing-leak.html" class="btn btn-run">Run Test</a>
+            </div>
+        </div>
+
+        <div class="test-card" data-tags="uxss cross-browser" data-browsers="all">
+            <div class="status-indicator"></div>
+            <div class="test-id">UXSS-XB-04</div>
+            <h3>window.open() + document.write() Race Condition</h3>
+            <div class="description">Classic UXSS updated for modern browsers. Opens popup to cross-origin, immediately attempts document.write before navigation commits. Multiple timing variants.</div>
+            <div class="tags">
+                <span class="tag tag-all">All Browsers</span>
+                <span class="tag tag-uxss">Race Condition</span>
+            </div>
+            <div class="actions">
+                <a href="tests/uxss/cross-browser/uxss-xb-04-window-open-race.html" class="btn btn-run">Run Test</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- URL Spoofing Section -->
+    <h2 class="section-title" id="section-spoof">URL Spoofing Tests</h2>
+    <div class="test-grid" id="grid-spoof">
+
+        <div class="test-card" data-tags="spoof chrome" data-browsers="chrome">
+            <div class="status-indicator"></div>
+            <div class="test-id">SPOOF-CHROME-01</div>
+            <h3>Chrome Android Toolbar Domain Spoofing</h3>
+            <div class="description">history.replaceState + iframe navigation causes Chrome Android toolbar to display trusted domain while loading attacker content. $2,000 bounty.</div>
+            <div class="tags">
+                <span class="tag tag-chrome">Chrome</span>
+                <span class="tag tag-mobile">Android</span>
+                <span class="tag tag-cve">CVE-2025-14373</span>
+                <span class="tag tag-spoof">URL Spoof</span>
+            </div>
+            <div class="actions">
+                <a href="tests/url-spoofing/chrome/spoof-chrome-01-toolbar-domain-spoof.html" class="btn btn-run">Run Test</a>
+            </div>
+        </div>
+
+        <div class="test-card" data-tags="spoof chrome" data-browsers="chrome edge opera brave">
+            <div class="status-indicator"></div>
+            <div class="test-id">SPOOF-CHROME-02</div>
+            <h3>Chromium Omnibox UI Spoofing</h3>
+            <div class="description">Multiple Omnibox spoofing bugs (CVE-2025-12435, -12728, -12729). Shows trusted URL/padlock on malicious page via UI implementation flaws.</div>
+            <div class="tags">
+                <span class="tag tag-chrome">Chromium</span>
+                <span class="tag tag-cve">CVE-2025-12435</span>
+                <span class="tag tag-spoof">URL Spoof</span>
+            </div>
+            <div class="actions">
+                <a href="tests/url-spoofing/chrome/spoof-chrome-02-omnibox-ui.html" class="btn btn-run">Run Test</a>
+            </div>
+        </div>
+
+        <div class="test-card" data-tags="spoof safari" data-browsers="safari ios">
+            <div class="status-indicator"></div>
+            <div class="test-id">SPOOF-SAFARI-01</div>
+            <h3>Blob URL Address Bar Display</h3>
+            <div class="description">Blob URLs display as blob:https://origin/uuid. On mobile, blob: prefix may be truncated, showing only the trusted origin while serving attacker content.</div>
+            <div class="tags">
+                <span class="tag tag-safari">Safari</span>
+                <span class="tag tag-all">All Browsers</span>
+                <span class="tag tag-spoof">URL Spoof</span>
+            </div>
+            <div class="actions">
+                <a href="tests/url-spoofing/safari/spoof-safari-01-blob-url-display.html" class="btn btn-run">Run Test</a>
+            </div>
+        </div>
+
+        <div class="test-card" data-tags="spoof firefox" data-browsers="firefox ios">
+            <div class="status-indicator"></div>
+            <div class="test-id">SPOOF-FIREFOX-01</div>
+            <h3>Firefox iOS Long Hostname Address Bar Spoof</h3>
+            <div class="description">Long hostnames in URLs obscure the actual domain. The real domain is pushed out of visible address bar area by long subdomains mimicking trusted sites.</div>
+            <div class="tags">
+                <span class="tag tag-firefox">Firefox</span>
+                <span class="tag tag-mobile">iOS</span>
+                <span class="tag tag-cve">CVE-2025-23109</span>
+                <span class="tag tag-spoof">URL Spoof</span>
+            </div>
+            <div class="actions">
+                <a href="tests/url-spoofing/firefox/spoof-firefox-01-long-hostname.html" class="btn btn-run">Run Test</a>
+            </div>
+        </div>
+
+        <div class="test-card" data-tags="spoof opera" data-browsers="opera">
+            <div class="status-indicator"></div>
+            <div class="test-id">SPOOF-OPERA-01</div>
+            <h3>Opera RTL/Arabic Character Address Bar Spoof</h3>
+            <div class="description">Arabic/RTL characters in URLs cause address bar to render right-to-left. Combined with IP addresses and neutral characters, URLs display reversed. Multiple Opera CVEs.</div>
+            <div class="tags">
+                <span class="tag tag-opera">Opera</span>
+                <span class="tag tag-mobile">Android</span>
+                <span class="tag tag-cve">CVE-2019-12278</span>
+                <span class="tag tag-spoof">URL Spoof</span>
+            </div>
+            <div class="actions">
+                <a href="tests/url-spoofing/opera/spoof-opera-01-rtl-arabic.html" class="btn btn-run">Run Test</a>
+            </div>
+        </div>
+
+        <div class="test-card" data-tags="spoof opera cross-browser" data-browsers="opera safari chrome">
+            <div class="status-indicator"></div>
+            <div class="test-id">SPOOF-OPERA-02</div>
+            <h3>Fullscreen API Fake Browser Chrome</h3>
+            <div class="description">Fullscreen API hides real address bar. Attacker renders fake browser UI with trusted URL. Opera Android showed no notification. Safari: "wontfix". Used in BitM attacks.</div>
+            <div class="tags">
+                <span class="tag tag-opera">Opera</span>
+                <span class="tag tag-all">All Browsers</span>
+                <span class="tag tag-spoof">UI Spoof</span>
+            </div>
+            <div class="actions">
+                <a href="tests/url-spoofing/opera/spoof-opera-02-fullscreen-spoof.html" class="btn btn-run">Run Test</a>
+            </div>
+        </div>
+
+        <div class="test-card" data-tags="spoof cross-browser" data-browsers="all">
+            <div class="status-indicator"></div>
+            <div class="test-id">SPOOF-XB-01</div>
+            <h3>Meta Refresh Rapid Redirect Address Bar Race</h3>
+            <div class="description">Rapid meta refresh redirects cause address bar to lag behind actual page content. Page shows content from one URL while address bar displays previous URL.</div>
+            <div class="tags">
+                <span class="tag tag-all">All Browsers</span>
+                <span class="tag tag-spoof">Race Condition</span>
+            </div>
+            <div class="actions">
+                <a href="tests/url-spoofing/cross-browser/spoof-xb-01-meta-refresh-race.html" class="btn btn-run">Run Test</a>
+            </div>
+        </div>
+
+        <div class="test-card" data-tags="spoof cross-browser" data-browsers="firefox opera">
+            <div class="status-indicator"></div>
+            <div class="test-id">SPOOF-XB-02</div>
+            <h3>URL Userinfo (@) Domain Confusion</h3>
+            <div class="description">https://google.com@evil.com connects to evil.com with username "google.com". Address bar display varies; some browsers show the confusing full URL.</div>
+            <div class="tags">
+                <span class="tag tag-all">All Browsers</span>
+                <span class="tag tag-spoof">URL Spoof</span>
+            </div>
+            <div class="actions">
+                <a href="tests/url-spoofing/cross-browser/spoof-xb-02-auth-url-confusion.html" class="btn btn-run">Run Test</a>
+            </div>
+        </div>
+
+        <div class="test-card" data-tags="spoof cross-browser" data-browsers="firefox safari">
+            <div class="status-indicator"></div>
+            <div class="test-id">SPOOF-XB-03</div>
+            <h3>data: URI Tab Title and Content Spoofing</h3>
+            <div class="description">Data URIs with HTML including custom title tags. Tab shows attacker title while address bar shows unfamiliar "data:text/html,...". Effective for phishing.</div>
+            <div class="tags">
+                <span class="tag tag-all">All Browsers</span>
+                <span class="tag tag-spoof">Phishing</span>
+            </div>
+            <div class="actions">
+                <a href="tests/url-spoofing/cross-browser/spoof-xb-03-data-uri-title.html" class="btn btn-run">Run Test</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Legacy Section -->
+    <h2 class="section-title" id="section-legacy">Legacy Tests (V1.0 - Rafay Baloch)</h2>
+    <div class="test-grid" id="grid-legacy">
+        <div class="test-card" data-tags="legacy uxss" data-browsers="all">
+            <div class="test-id">LEGACY</div>
+            <h3>Original SOP Bypass Mini Test Suite V1.0</h3>
+            <div class="description">19 test cases from Blackhat "Bypassing Browser Security Policies For Fun And Profit" (2016). Tests CVE-2014-6041, CVE-2014-3160, and other 2012-2016 era bypasses.</div>
+            <div class="tags">
+                <span class="tag tag-all">All Browsers</span>
+                <span class="tag tag-uxss">Legacy UXSS</span>
+            </div>
+            <div class="actions">
+                <a href="legacy/home.html" class="btn">Open V1.0 Suite</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Results Panel -->
+    <div class="results-panel">
+        <h2>Test Results Log</h2>
+        <div id="results-log">
+            <div class="log-entry log-info">Ready. Select a test to begin.</div>
+        </div>
+    </div>
+
+</div>
+
+<footer>
+    <p>SOP Bypass Mini Test Suite V2.0 | Open-Source Security Research</p>
+    <p>Primary domain: <a href="https://abhikafle.com.np">abhikafle.com.np</a> |
+       Cross-origin target: <a href="https://ebniw.com">ebniw.com</a></p>
+    <p>Original V1.0 by <strong>Rafay Baloch</strong> | V2.0 by <strong>Abhi Kafle</strong></p>
+    <p style="margin-top:10px;">For responsible disclosure only. Do not use against systems you do not own.</p>
+</footer>
+
+<script src="js/utils.js"></script>
+<script>
+// Auto-detect browser and show info
+(function() {
+    const info = detectBrowser();
+    const el = document.getElementById('browser-info');
+    el.textContent = info.browser + ' ' + info.version + ' (' + info.engine + ')' +
+        (info.isMobile ? ' [Mobile]' : ' [Desktop]');
+})();
+
+// Filter functionality
+function filterTests(tag) {
+    // Update active button
+    document.querySelectorAll('.filter-btn').forEach(function(btn) {
+        btn.classList.remove('active');
+        if (btn.textContent.toLowerCase().includes(tag) || (tag === 'all' && btn.textContent === 'All Tests')) {
+            btn.classList.add('active');
+        }
+    });
+
+    // Show/hide sections and cards
+    const allCards = document.querySelectorAll('.test-card');
+    const sections = {
+        'section-uxss': false,
+        'section-spoof': false,
+        'section-legacy': false
+    };
+
+    allCards.forEach(function(card) {
+        const tags = card.getAttribute('data-tags') || '';
+        const show = tag === 'all' || tags.includes(tag);
+        card.style.display = show ? '' : 'none';
+
+        if (show) {
+            // Determine which section this card belongs to
+            const grid = card.closest('.test-grid');
+            if (grid) {
+                if (grid.id === 'grid-uxss') sections['section-uxss'] = true;
+                if (grid.id === 'grid-spoof') sections['section-spoof'] = true;
+                if (grid.id === 'grid-legacy') sections['section-legacy'] = true;
+            }
+        }
+    });
+
+    // Show/hide section headers
+    Object.keys(sections).forEach(function(id) {
+        const el = document.getElementById(id);
+        if (el) el.style.display = sections[id] ? '' : 'none';
+        const gridId = 'grid-' + id.replace('section-', '');
+        const grid = document.getElementById(gridId);
+        if (grid) grid.style.display = sections[id] ? '' : 'none';
+    });
+}
+</script>
+
+</body>
+</html>

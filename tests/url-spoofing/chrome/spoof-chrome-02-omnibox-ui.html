@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>SPOOF-CHROME-02: Chromium Omnibox Spoofing</title>
+    <link rel="stylesheet" href="../../../css/style.css">
+</head>
+<body class="test-page" style="background:#0d1117;color:#c9d1d9;">
+<div class="container">
+    <a href="../../../index.html" class="btn btn-back">&larr; Back to Suite</a>
+    <h1>Chromium Omnibox UI Spoofing</h1>
+    <div class="meta">
+        <span>ID: SPOOF-CHROME-02</span>
+        <span>CVE: CVE-2025-12435 / CVE-2025-12728 / CVE-2025-12729</span>
+        <span>Browsers: Chrome (pre-142), Edge, Opera, Brave</span>
+        <span>Category: URL Spoofing</span>
+    </div>
+
+    <div class="test-section">
+        <h2>Description</h2>
+        <p>Multiple Chromium Omnibox spoofing vulnerabilities were patched in 2025:
+        <ul style="color:#c9d1d9;margin:10px 0 10px 20px;">
+            <li><strong>CVE-2025-12435</strong>: Incorrect security UI in Omnibox - shows trusted URL/padlock on malicious page</li>
+            <li><strong>CVE-2025-12728</strong>: Inappropriate implementation in Omnibox (by Hafiizh)</li>
+            <li><strong>CVE-2025-12729</strong>: Inappropriate implementation in Omnibox (by Khalil Zhani)</li>
+        </ul>
+        </p>
+    </div>
+
+    <div class="test-section">
+        <h2>Run Test</h2>
+        <button class="btn btn-run" onclick="runTest()">Test Omnibox Behavior</button>
+        <button class="btn" onclick="testLongUrl()">Test Long URL Truncation</button>
+        <button class="btn" onclick="testUnicodeUrl()">Test Unicode in URL</button>
+        <div id="output" class="output-box" style="margin-top:10px;"></div>
+    </div>
+</div>
+
+<script src="../../../js/utils.js"></script>
+<script>
+function runTest() {
+    const output = document.getElementById('output');
+    const info = detectBrowser();
+    output.innerHTML = '<div style="color:#d29922;">Testing Omnibox behavior...</div>';
+    output.innerHTML += '<div style="color:#8b949e;">Browser: ' + info.browser + ' ' + info.version + '</div>';
+
+    // Test 1: pushState with padding to hide real domain
+    const original = location.href;
+    const padding = 'A'.repeat(200);
+    try {
+        history.pushState(null, '', '/' + padding + '?real=content');
+        output.innerHTML += '<div style="color:#8b949e;">Pushed long URL. Check omnibox - is the domain still visible?</div>';
+        output.innerHTML += '<div style="color:#8b949e;">URL length: ' + location.href.length + ' chars</div>';
+        setTimeout(function() { history.replaceState(null, '', original.split('?')[0]); }, 3000);
+    } catch(e) {
+        output.innerHTML += '<div style="color:#8b949e;">Long URL pushState: ' + e.message + '</div>';
+    }
+
+    // Test 2: Subdomains that look like paths
+    output.innerHTML += '<div style="color:#58a6ff;margin-top:10px;">Subdomain-as-path analysis:</div>';
+    const confusingUrls = [
+        'https://google.com.' + CONFIG.PRIMARY_DOMAIN + '/login',
+        'https://secure-login.' + CONFIG.PRIMARY_DOMAIN + '/',
+        'https://' + CONFIG.PRIMARY_DOMAIN + '@' + CONFIG.XORIGIN_DOMAIN + '/',
+    ];
+    confusingUrls.forEach(function(url) {
+        try {
+            const parsed = new URL(url);
+            output.innerHTML += '<div style="color:#8b949e;">URL: ' + url + '</div>';
+            output.innerHTML += '<div style="color:#8b949e;">  Actual host: ' + parsed.hostname + '</div>';
+            output.innerHTML += '<div style="color:#8b949e;">  Actual origin: ' + parsed.origin + '</div>';
+        } catch(e) {
+            output.innerHTML += '<div style="color:#8b949e;">Invalid URL: ' + url + '</div>';
+        }
+    });
+
+    reportResult('output', 'Omnibox spoofing', false,
+        'Manual inspection needed. Check if omnibox properly displays the full domain.');
+}
+
+function testLongUrl() {
+    const output = document.getElementById('output');
+    output.innerHTML = '<div style="color:#d29922;">Testing long URL truncation...</div>';
+
+    // On mobile, very long URLs get truncated in the address bar
+    // An attacker can pad the URL so only a trusted-looking portion is visible
+    const padding = encodeURIComponent('google.com/'.repeat(20));
+    const original = location.href;
+
+    try {
+        history.pushState(null, '', '/secure/' + padding + '/login');
+        output.innerHTML += '<div style="color:#d29922;">Pushed URL with google.com padding.</div>';
+        output.innerHTML += '<div style="color:#d29922;">On mobile, only a truncated portion may be visible.</div>';
+        output.innerHTML += '<div style="color:#8b949e;">Full URL length: ' + location.href.length + '</div>';
+        setTimeout(function() { history.replaceState(null, '', original.split('?')[0]); }, 5000);
+    } catch(e) {
+        output.innerHTML += '<div style="color:#8b949e;">Error: ' + e.message + '</div>';
+    }
+}
+
+function testUnicodeUrl() {
+    const output = document.getElementById('output');
+    output.innerHTML = '<div style="color:#d29922;">Testing Unicode in URL display...</div>';
+
+    // Test various Unicode tricks in path
+    const unicodePaths = [
+        '/login\u2025google.com',      // TWO DOT LEADER
+        '/\u2024\u2024google\u2024com', // ONE DOT LEADER as period
+        '/secure\u2215login',           // DIVISION SLASH
+        '/\u2044login',                 // FRACTION SLASH
+        '/goo\u0261le.com',             // Latin small letter script g
+    ];
+
+    unicodePaths.forEach(function(path) {
+        try {
+            const testUrl = new URL(path, location.origin);
+            output.innerHTML += '<div style="color:#8b949e;">Path: ' + path + ' → ' + testUrl.href + '</div>';
+        } catch(e) {
+            output.innerHTML += '<div style="color:#8b949e;">Invalid: ' + e.message + '</div>';
+        }
+    });
+}
+</script>
+</body>
+</html>

