@@ -1,0 +1,18 @@
+{
+  "name": "sop-bypass-test-runner",
+  "version": "2.0.0",
+  "description": "Automated test runner for SOP Bypass Mini Test Suite",
+  "scripts": {
+    "install-browsers": "npx playwright install chromium firefox webkit",
+    "test": "node automation/runner.js --all",
+    "test:brave": "node automation/runner.js --browser chromium",
+    "test:firefox": "node automation/runner.js --browser firefox",
+    "test:safari": "node automation/runner.js --browser webkit",
+    "test:all": "node automation/runner.js --all",
+    "test:report": "node automation/runner.js --all --report",
+    "serve": "npx http-server . -p 8080 -c-1 --cors"
+  },
+  "dependencies": {
+    "playwright": "^1.52.0"
+  }
+}

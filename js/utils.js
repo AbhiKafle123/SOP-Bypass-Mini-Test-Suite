@@ -115,4 +115,10 @@ function reportResult(outputId, testName, passed, details) {
         '<strong>[' + status + ']</strong> ' + testName +
         (details ? '<br><span style="color:#8b949e;font-size:0.9em;">' + details + '</span>' : '') +
         '</div>';
+
+    // Emit event for automated test runner (Playwright)
+    window.__sopTestResults = window.__sopTestResults || [];
+    var result = { testName: testName, passed: passed, details: details || '', timestamp: Date.now() };
+    window.__sopTestResults.push(result);
+    window.dispatchEvent(new CustomEvent('sop-test-result', { detail: result }));
 }

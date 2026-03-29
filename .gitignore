@@ -1,0 +1,3 @@
+node_modules/
+automation/results-*.json
+automation/report-*.html
