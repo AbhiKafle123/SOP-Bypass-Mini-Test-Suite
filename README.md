@@ -9,7 +9,7 @@ Universal Cross-Site Scripting (UXSS), and URL/address bar spoofing across moder
 
 ## Test Categories
 
-### UXSS / SOP Bypass (11 tests)
+### UXSS / SOP Bypass (12 tests + 56-variant matrix)
 
 | ID | Test | CVE/Reference | Browsers |
 |----|------|---------------|----------|
@@ -24,6 +24,7 @@ Universal Cross-Site Scripting (UXSS), and URL/address bar spoofing across moder
 | UXSS-XB-02 | Sandbox allow-scripts+allow-same-origin Escape | Design issue | All browsers |
 | UXSS-XB-03 | Performance API Cross-Origin Timing Leak | Side-channel | All browsers |
 | UXSS-XB-04 | window.open() Race Condition | Classic UXSS updated | All browsers |
+| UXSS-XB-05 | SOP Bypass Variant Matrix (56 Use Cases) | Derived research variants | Chrome, Edge, Firefox, Safari, Opera |
 
 ### URL Spoofing (9 tests)
 
