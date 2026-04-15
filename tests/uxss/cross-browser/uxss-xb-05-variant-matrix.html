@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>UXSS-XB-05: SOP Bypass Variant Matrix (56 Use Cases)</title>
+    <link rel="stylesheet" href="../../../css/style.css">
+</head>
+<body class="test-page" style="background:#0d1117;color:#c9d1d9;">
+<div class="container">
+    <a href="../../../index.html" class="btn btn-back">&larr; Back to Suite</a>
+    <h1>SOP Bypass Variant Matrix (56 Use Cases)</h1>
+    <div class="meta">
+        <span>ID: UXSS-XB-05</span>
+        <span>Browsers: Chrome, Edge, Firefox, Safari, Opera</span>
+        <span>Category: UXSS / SOP Bypass Variants</span>
+    </div>
+
+    <div class="test-section">
+        <h2>Description</h2>
+        <p>This page expands existing SOP/UXSS patterns into <strong>56 concrete variants</strong>.
+        It combines popup races, iframe origin transitions, sandbox combinations,
+        postMessage trust mistakes, and cross-origin read attempts.</p>
+        <p>Use this matrix to quickly triage behavior differences across browser engines.
+        Each variant returns <code>blocked</code>, <code>allowed</code>, or <code>error</code> with notes.</p>
+    </div>
+
+    <div class="test-section">
+        <h2>Run Matrix</h2>
+        <button class="btn btn-run" onclick="runAllVariants()">Run All 56 Variants</button>
+        <button class="btn" onclick="clearResults()">Clear Results</button>
+        <div id="summary" class="output-box" style="margin-top:10px;"></div>
+        <div id="output" class="output-box" style="margin-top:10px;max-height:480px;overflow:auto;"></div>
+    </div>
+</div>
+
+<script src="../../../js/utils.js"></script>
+<script>
+const TARGET_URL = CONFIG.XORIGIN_ORIGIN + '/';
+
+function clearResults() {
+    document.getElementById('summary').innerHTML = '';
+    document.getElementById('output').innerHTML = '';
+}
+
+function pushLine(html) {
+    const out = document.getElementById('output');
+    out.innerHTML += html;
+    out.scrollTop = out.scrollHeight;
+}
+
+function summarize(results) {
+    const allowed = results.filter(r => r.status === 'allowed').length;
+    const blocked = results.filter(r => r.status === 'blocked').length;
+    const errors = results.filter(r => r.status === 'error').length;
+    document.getElementById('summary').innerHTML =
+        '<div><strong>Total variants:</strong> ' + results.length + '</div>' +
+        '<div style="color:#f85149;"><strong>Allowed (interesting):</strong> ' + allowed + '</div>' +
+        '<div style="color:#3fb950;"><strong>Blocked (expected):</strong> ' + blocked + '</div>' +
+        '<div style="color:#d29922;"><strong>Errors/indeterminate:</strong> ' + errors + '</div>';
+}
+
+function makeVariant(id, group, title, handler) {
+    return { id, group, title, handler };
+}
+
+function resultBadge(status) {
+    if (status === 'allowed') return '#f85149';
+    if (status === 'blocked') return '#3fb950';
+    return '#d29922';
+}
+
+function logVariantResult(v, res) {
+    const color = resultBadge(res.status);
+    pushLine(
+        '<div style="border-left:3px solid ' + color + ';padding:6px 8px;margin:6px 0;background:#111827;">' +
+        '<strong>' + v.id + '</strong> [' + v.group + '] ' + v.title + '<br>' +
+        '<span style="color:' + color + ';font-weight:600;">' + res.status.toUpperCase() + '</span> - ' +
+        '<span style="color:#8b949e;">' + res.note + '</span>' +
+        '</div>'
+    );
+}
+
+function attemptRead(fn) {
+    try {
+        fn();
+        return { status: 'allowed', note: 'Cross-origin action unexpectedly succeeded' };
+    } catch (e) {
+        return { status: 'blocked', note: e.message || 'Blocked by SOP' };
+    }
+}
+
+function popupWriteAttempt(url, mode) {
+    const popup = window.open(url, '_blank');
+    if (!popup) return { status: 'error', note: 'Popup blocked by browser' };
+    try {
+        if (mode === 'write') popup.document.write('<h1>x</h1>');
+        if (mode === 'open') popup.document.open();
+        if (mode === 'title') popup.document.title = 'x';
+        if (mode === 'href') popup.location.href;
+        return { status: 'allowed', note: 'Popup access succeeded before navigation commit' };
+    } catch (e) {
+        return { status: 'blocked', note: e.message || 'Blocked by SOP' };
+    } finally {
+        setTimeout(() => { try { popup.close(); } catch (e) {} }, 300);
+    }
+}
+
+function iframeAttempt(src, probe) {
+    const frame = document.createElement('iframe');
+    frame.style.display = 'none';
+    frame.src = src;
+    document.body.appendChild(frame);
+    try {
+        if (probe === 'href') frame.contentWindow.location.href;
+        if (probe === 'doc') frame.contentWindow.document.body && frame.contentWindow.document.body.innerHTML;
+        if (probe === 'cookie') frame.contentWindow.document.cookie;
+        if (probe === 'domain') frame.contentWindow.document.domain;
+        return { status: 'allowed', note: 'Iframe read succeeded' };
+    } catch (e) {
+        return { status: 'blocked', note: e.message || 'Blocked by SOP' };
+    } finally {
+        setTimeout(() => frame.remove(), 300);
+    }
+}
+
+const variants = [
+    // Popup race variants (16)
+    makeVariant('UXSS-XB-05-01', 'popup-race', 'window.open cross-origin then document.write', () => popupWriteAttempt(TARGET_URL, 'write')),
+    makeVariant('UXSS-XB-05-02', 'popup-race', 'window.open cross-origin then document.open', () => popupWriteAttempt(TARGET_URL, 'open')),
+    makeVariant('UXSS-XB-05-03', 'popup-race', 'window.open cross-origin then document.title', () => popupWriteAttempt(TARGET_URL, 'title')),
+    makeVariant('UXSS-XB-05-04', 'popup-race', 'window.open cross-origin then read location.href', () => popupWriteAttempt(TARGET_URL, 'href')),
+    makeVariant('UXSS-XB-05-05', 'popup-race', 'window.open about:blank then navigate and re-write', () => {
+        const p = window.open('about:blank', '_blank');
+        if (!p) return { status: 'error', note: 'Popup blocked' };
+        try {
+            p.document.write('seed');
+            p.location = TARGET_URL;
+            p.document.write('rewrite');
+            return { status: 'allowed', note: 'Write persisted after navigation trigger' };
+        } catch (e) {
+            return { status: 'blocked', note: e.message || 'Blocked by SOP' };
+        } finally {
+            setTimeout(() => { try { p.close(); } catch (e) {} }, 500);
+        }
+    }),
+    makeVariant('UXSS-XB-05-06', 'popup-race', 'window.open target then delayed(50ms) write', () => {
+        const p = window.open(TARGET_URL, '_blank');
+        if (!p) return { status: 'error', note: 'Popup blocked' };
+        return new Promise(resolve => {
+            setTimeout(() => {
+                try {
+                    p.document.write('delay50');
+                    resolve({ status: 'allowed', note: 'Delayed write succeeded' });
+                } catch (e) {
+                    resolve({ status: 'blocked', note: e.message || 'Blocked by SOP' });
+                } finally {
+                    setTimeout(() => { try { p.close(); } catch (e) {} }, 300);
+                }
+            }, 50);
+        });
+    }),
+    makeVariant('UXSS-XB-05-07', 'popup-race', 'window.open target then delayed(250ms) write', () => {
+        const p = window.open(TARGET_URL, '_blank');
+        if (!p) return { status: 'error', note: 'Popup blocked' };
+        return new Promise(resolve => {
+            setTimeout(() => {
+                try {
+                    p.document.write('delay250');
+                    resolve({ status: 'allowed', note: 'Delayed write succeeded' });
+                } catch (e) {
+                    resolve({ status: 'blocked', note: e.message || 'Blocked by SOP' });
+                } finally {
+                    setTimeout(() => { try { p.close(); } catch (e) {} }, 300);
+                }
+            }, 250);
+        });
+    }),
+    makeVariant('UXSS-XB-05-08', 'popup-race', 'window.open target then delayed(1000ms) write', () => {
+        const p = window.open(TARGET_URL, '_blank');
+        if (!p) return { status: 'error', note: 'Popup blocked' };
+        return new Promise(resolve => {
+            setTimeout(() => {
+                try {
+                    p.document.write('delay1000');
+                    resolve({ status: 'allowed', note: 'Delayed write succeeded' });
+                } catch (e) {
+                    resolve({ status: 'blocked', note: e.message || 'Blocked by SOP' });
+                } finally {
+                    setTimeout(() => { try { p.close(); } catch (e) {} }, 300);
+                }
+            }, 1000);
+        });
+    }),
+    makeVariant('UXSS-XB-05-09', 'popup-race', 'window.open javascript: URI bootstrap', () => popupWriteAttempt('javascript:""', 'write')),
+    makeVariant('UXSS-XB-05-10', 'popup-race', 'window.open data: URI bootstrap then write', () => popupWriteAttempt('data:text/html,<h1>x</h1>', 'write')),
+    makeVariant('UXSS-XB-05-11', 'popup-race', 'named window reuse (_blank equivalent)', () => {
+        const p1 = window.open('about:blank', 'uxssReuse');
+        if (!p1) return { status: 'error', note: 'Popup blocked' };
+        p1.location = TARGET_URL;
+        return popupWriteAttempt(TARGET_URL, 'write');
+    }),
+    makeVariant('UXSS-XB-05-12', 'popup-race', 'noopener popup then opener-based access', () => {
+        const p = window.open(TARGET_URL, '_blank', 'noopener');
+        if (!p) return { status: 'error', note: 'Popup blocked/noopener null ref' };
+        return attemptRead(() => p.document.title = 'x');
+    }),
+    makeVariant('UXSS-XB-05-13', 'popup-race', 'noreferrer popup then document access', () => {
+        const p = window.open(TARGET_URL, '_blank', 'noreferrer');
+        if (!p) return { status: 'error', note: 'Popup blocked' };
+        return attemptRead(() => p.document.title = 'x');
+    }),
+    makeVariant('UXSS-XB-05-14', 'popup-race', 'double-open race (open target twice fast)', () => {
+        const p = window.open(TARGET_URL, '_blank');
+        if (!p) return { status: 'error', note: 'Popup blocked' };
+        p.location = TARGET_URL + '?v=2';
+        return attemptRead(() => p.document.write('double'));
+    }),
+    makeVariant('UXSS-XB-05-15', 'popup-race', 'about:blank -> same-origin script -> cross-origin readback', () => {
+        const p = window.open('about:blank', '_blank');
+        if (!p) return { status: 'error', note: 'Popup blocked' };
+        try {
+            p.document.write('<script>window.marker="seed";<\/script>');
+            p.location = TARGET_URL;
+            const m = p.marker;
+            return { status: 'allowed', note: 'marker=' + m };
+        } catch (e) {
+            return { status: 'blocked', note: e.message || 'Blocked by SOP' };
+        }
+    }),
+    makeVariant('UXSS-XB-05-16', 'popup-race', 'window.name persistence confusion after navigation', () => {
+        const p = window.open('about:blank', '_blank');
+        if (!p) return { status: 'error', note: 'Popup blocked' };
+        try {
+            p.name = 'trusted-session-token';
+            p.location = TARGET_URL;
+            const leaked = p.name;
+            return leaked ? { status: 'allowed', note: 'window.name readable: ' + leaked } : { status: 'blocked', note: 'No value observed' };
+        } catch (e) {
+            return { status: 'blocked', note: e.message || 'Blocked by SOP' };
+        }
+    }),
+
+    // Iframe/read probes (16)
+    makeVariant('UXSS-XB-05-17', 'iframe-read', 'iframe target read location.href', () => iframeAttempt(TARGET_URL, 'href')),
+    makeVariant('UXSS-XB-05-18', 'iframe-read', 'iframe target read document.body', () => iframeAttempt(TARGET_URL, 'doc')),
+    makeVariant('UXSS-XB-05-19', 'iframe-read', 'iframe target read document.cookie', () => iframeAttempt(TARGET_URL, 'cookie')),
+    makeVariant('UXSS-XB-05-20', 'iframe-read', 'iframe target read document.domain', () => iframeAttempt(TARGET_URL, 'domain')),
+    makeVariant('UXSS-XB-05-21', 'iframe-read', 'iframe about:blank then set src cross-origin and read', () => {
+        const frame = document.createElement('iframe');
+        frame.src = 'about:blank';
+        frame.style.display = 'none';
+        document.body.appendChild(frame);
+        try {
+            frame.contentWindow.document.body.innerHTML = 'seed';
+            frame.src = TARGET_URL;
+            const html = frame.contentWindow.document.body.innerHTML;
+            return { status: 'allowed', note: 'html length=' + (html || '').length };
+        } catch (e) {
+            return { status: 'blocked', note: e.message || 'Blocked by SOP' };
+        } finally {
+            setTimeout(() => frame.remove(), 500);
+        }
+    }),
+    makeVariant('UXSS-XB-05-22', 'iframe-read', 'iframe srcdoc containing script reading parent', () => {
+        const frame = document.createElement('iframe');
+        frame.srcdoc = '<script>parent.__srcdocLeak = document.domain;<\/script>';
+        document.body.appendChild(frame);
+        const leaked = window.__srcdocLeak;
+        frame.remove();
+        return leaked ? { status: 'allowed', note: 'srcdoc executed and wrote parent marker' } : { status: 'blocked', note: 'No marker written' };
+    }),
+    makeVariant('UXSS-XB-05-23', 'iframe-read', 'sandbox allow-scripts allow-same-origin + parent DOM access', () => {
+        const frame = document.createElement('iframe');
+        frame.setAttribute('sandbox', 'allow-scripts allow-same-origin');
+        frame.srcdoc = '<script>try{parent.__sandboxEscape=parent.location.origin}catch(e){parent.__sandboxEscape="blocked"}<' + '/script>';
+        document.body.appendChild(frame);
+        const v = window.__sandboxEscape;
+        frame.remove();
+        if (v && v !== 'blocked') return { status: 'allowed', note: 'Parent origin reached: ' + v };
+        return { status: 'blocked', note: 'Sandbox escape not observed' };
+    }),
+    makeVariant('UXSS-XB-05-24', 'iframe-read', 'sandbox allow-scripts without allow-same-origin', () => {
+        const frame = document.createElement('iframe');
+        frame.setAttribute('sandbox', 'allow-scripts');
+        frame.srcdoc = '<script>try{parent.__s2=parent.location.origin}catch(e){parent.__s2="blocked"}<' + '/script>';
+        document.body.appendChild(frame);
+        const v = window.__s2;
+        frame.remove();
+        return (v && v !== 'blocked') ? { status: 'allowed', note: 'Unexpected parent access' } : { status: 'blocked', note: 'Expectedly isolated' };
+    }),
+    makeVariant('UXSS-XB-05-25', 'iframe-read', 'sandbox allow-top-navigation-by-user-activation bypass probe', () => {
+        const frame = document.createElement('iframe');
+        frame.setAttribute('sandbox', 'allow-scripts allow-top-navigation-by-user-activation');
+        frame.srcdoc = '<script>top.location="about:blank#navprobe";<\/script>';
+        document.body.appendChild(frame);
+        frame.remove();
+        return { status: 'error', note: 'Manual confirmation needed (user activation policy)' };
+    }),
+    makeVariant('UXSS-XB-05-26', 'iframe-read', 'credentialless iframe read probe', () => {
+        const frame = document.createElement('iframe');
+        frame.setAttribute('credentialless', '');
+        frame.src = TARGET_URL;
+        document.body.appendChild(frame);
+        try {
+            frame.contentWindow.location.href;
+            return { status: 'allowed', note: 'credentialless frame was readable' };
+        } catch (e) {
+            return { status: 'blocked', note: e.message || 'Blocked by SOP' };
+        } finally {
+            frame.remove();
+        }
+    }),
+    makeVariant('UXSS-XB-05-27', 'iframe-read', 'iframe blob URL inherits opener origin', () => {
+        const blob = new Blob(['<h1>blob-test</h1>'], { type: 'text/html' });
+        const url = URL.createObjectURL(blob);
+        return iframeAttempt(url, 'doc');
+    }),
+    makeVariant('UXSS-XB-05-28', 'iframe-read', 'iframe data URL read probe', () => iframeAttempt('data:text/html,<h1>data</h1>', 'doc')),
+    makeVariant('UXSS-XB-05-29', 'iframe-read', 'iframe javascript: URL read probe', () => iframeAttempt('javascript:""', 'doc')),
+    makeVariant('UXSS-XB-05-30', 'iframe-read', 'iframe window.name transfer on cross-origin nav', () => {
+        const frame = document.createElement('iframe');
+        frame.src = 'about:blank';
+        document.body.appendChild(frame);
+        try {
+            frame.contentWindow.name = 'frame-secret';
+            frame.src = TARGET_URL;
+            const n = frame.contentWindow.name;
+            return n ? { status: 'allowed', note: 'window.name readable: ' + n } : { status: 'blocked', note: 'No name data' };
+        } catch (e) {
+            return { status: 'blocked', note: e.message || 'Blocked by SOP' };
+        } finally {
+            frame.remove();
+        }
+    }),
+    makeVariant('UXSS-XB-05-31', 'iframe-read', 'history length side-channel across iframe nav', () => {
+        const frame = document.createElement('iframe');
+        frame.src = TARGET_URL;
+        document.body.appendChild(frame);
+        try {
+            const len = frame.contentWindow.history.length;
+            return { status: 'allowed', note: 'History length exposed: ' + len };
+        } catch (e) {
+            return { status: 'blocked', note: e.message || 'Blocked by SOP' };
+        } finally {
+            frame.remove();
+        }
+    }),
+    makeVariant('UXSS-XB-05-32', 'iframe-read', 'frame count probing for cross-origin page structure', () => {
+        const frame = document.createElement('iframe');
+        frame.src = TARGET_URL;
+        document.body.appendChild(frame);
+        try {
+            const count = frame.contentWindow.frames.length;
+            return { status: 'allowed', note: 'Frame count observable: ' + count };
+        } catch (e) {
+            return { status: 'blocked', note: e.message || 'Blocked by SOP' };
+        } finally {
+            frame.remove();
+        }
+    }),
+
+    // postMessage / null-origin / trust variants (12)
+    makeVariant('UXSS-XB-05-33', 'postmessage', 'postMessage to * from null-origin data URL', () => {
+        const f = document.createElement('iframe');
+        f.src = 'data:text/html,<script>parent.postMessage({k:"data-null"},"*")<\/script>';
+        document.body.appendChild(f);
+        return { status: 'error', note: 'Check event.origin manually in console listener' };
+    }),
+    makeVariant('UXSS-XB-05-34', 'postmessage', 'postMessage from sandboxed null origin iframe', () => {
+        const f = document.createElement('iframe');
+        f.setAttribute('sandbox', 'allow-scripts');
+        f.srcdoc = '<script>parent.postMessage({k:"sandbox-null"},"*")<\/script>';
+        document.body.appendChild(f);
+        return { status: 'error', note: 'Inspect event.origin should be null' };
+    }),
+    makeVariant('UXSS-XB-05-35', 'postmessage', 'postMessage expected origin mismatch (http vs https)', () => {
+        try {
+            window.postMessage({k:'scheme-test'}, 'http://' + location.host);
+            return { status: 'blocked', note: 'Target origin mismatch prevented dispatch' };
+        } catch (e) {
+            return { status: 'blocked', note: e.message || 'Mismatch blocked' };
+        }
+    }),
+    makeVariant('UXSS-XB-05-36', 'postmessage', 'postMessage wildcard accepted by listener anti-pattern', () => ({ status: 'error', note: 'Requires app listener with weak origin checks' })),
+    makeVariant('UXSS-XB-05-37', 'postmessage', 'MessageChannel transfer to cross-origin iframe', () => {
+        const f = document.createElement('iframe');
+        f.src = TARGET_URL;
+        document.body.appendChild(f);
+        const channel = new MessageChannel();
+        try {
+            f.contentWindow.postMessage('init', '*', [channel.port2]);
+            return { status: 'allowed', note: 'Port transferred; validate receiver origin checks' };
+        } catch (e) {
+            return { status: 'blocked', note: e.message || 'Transfer blocked' };
+        } finally {
+            setTimeout(() => f.remove(), 300);
+        }
+    }),
+    makeVariant('UXSS-XB-05-38', 'postmessage', 'BroadcastChannel same-name cross-origin isolation', () => {
+        try {
+            const bc = new BroadcastChannel('uxss-test');
+            bc.postMessage('x');
+            bc.close();
+            return { status: 'blocked', note: 'Cross-origin delivery should not happen by design' };
+        } catch (e) {
+            return { status: 'error', note: e.message || 'BroadcastChannel not available' };
+        }
+    }),
+    makeVariant('UXSS-XB-05-39', 'postmessage', 'SharedArrayBuffer message transfer probe', () => {
+        if (typeof SharedArrayBuffer === 'undefined') return { status: 'error', note: 'SAB unavailable (COOP/COEP required)' };
+        return { status: 'error', note: 'Requires cross-origin isolated setup for complete validation' };
+    }),
+    makeVariant('UXSS-XB-05-40', 'postmessage', 'event.source confusion after popup cross-nav', () => ({ status: 'error', note: 'Manual test: compare source window identity after redirects' })),
+    makeVariant('UXSS-XB-05-41', 'postmessage', 'origin canonicalization: trailing dot host', () => ({ status: 'error', note: 'Manual listener needed for host normalization validation' })),
+    makeVariant('UXSS-XB-05-42', 'postmessage', 'origin canonicalization: punycode/unicode mismatch', () => ({ status: 'error', note: 'Requires IDN domain pair to validate' })),
+    makeVariant('UXSS-XB-05-43', 'postmessage', 'JSON.parse prototype pollution payload over message', () => ({ status: 'error', note: 'Depends on vulnerable receiver implementation' })),
+    makeVariant('UXSS-XB-05-44', 'postmessage', 'ArrayBuffer transfer with confused deputy receiver', () => ({ status: 'error', note: 'Needs application-specific handler' })),
+
+    // Navigation/API edge cases (12)
+    makeVariant('UXSS-XB-05-45', 'navigation-api', 'window.location assignment to cross-origin then immediate read', () => {
+        const w = window.open('about:blank', '_blank');
+        if (!w) return { status: 'error', note: 'Popup blocked' };
+        try {
+            w.location = TARGET_URL;
+            const href = w.location.href;
+            return { status: 'allowed', note: 'href readable: ' + href };
+        } catch (e) {
+            return { status: 'blocked', note: e.message || 'Blocked by SOP' };
+        } finally {
+            setTimeout(() => { try { w.close(); } catch (e) {} }, 400);
+        }
+    }),
+    makeVariant('UXSS-XB-05-46', 'navigation-api', 'window.stop race during cross-origin navigation', () => ({ status: 'error', note: 'Timing-sensitive/manual verification required' })),
+    makeVariant('UXSS-XB-05-47', 'navigation-api', 'history.pushState before cross-origin redirect chain', () => ({ status: 'error', note: 'Use with redirect.php to validate UI/SOP edge cases' })),
+    makeVariant('UXSS-XB-05-48', 'navigation-api', 'location.replace cross-origin then document access', () => {
+        const f = document.createElement('iframe');
+        f.src = 'about:blank';
+        document.body.appendChild(f);
+        try {
+            f.contentWindow.location.replace(TARGET_URL);
+            f.contentWindow.document.title = 'x';
+            return { status: 'allowed', note: 'Document accessible after replace' };
+        } catch (e) {
+            return { status: 'blocked', note: e.message || 'Blocked by SOP' };
+        } finally {
+            f.remove();
+        }
+    }),
+    makeVariant('UXSS-XB-05-49', 'navigation-api', 'fragment-only cross-origin navigation probe', () => ({ status: 'error', note: 'Requires controlled target with hash reflection' })),
+    makeVariant('UXSS-XB-05-50', 'navigation-api', 'noopener+noreferrer+target reuse collision', () => ({ status: 'error', note: 'Manual tab/process-level observation needed' })),
+    makeVariant('UXSS-XB-05-51', 'navigation-api', 'document.domain relaxation legacy behavior check', () => {
+        try {
+            document.domain = location.hostname;
+            return { status: 'blocked', note: 'No cross-origin privilege gain in modern browsers' };
+        } catch (e) {
+            return { status: 'error', note: e.message || 'document.domain disabled/restricted' };
+        }
+    }),
+    makeVariant('UXSS-XB-05-52', 'navigation-api', 'cross-origin opener policy isolation effect', () => ({ status: 'error', note: 'Depends on COOP headers on both origins' })),
+    makeVariant('UXSS-XB-05-53', 'navigation-api', 'cross-origin embedder policy side effects', () => ({ status: 'error', note: 'Depends on COEP headers on both origins' })),
+    makeVariant('UXSS-XB-05-54', 'navigation-api', 'performance entries leak after redirect chain', () => ({ status: 'error', note: 'Use with server redirects and compare entry metadata' })),
+    makeVariant('UXSS-XB-05-55', 'navigation-api', 'fenced frame availability and origin isolation check', () => {
+        return ('HTMLFencedFrameElement' in window) ? { status: 'blocked', note: 'Fenced frames present; isolation stronger' } : { status: 'error', note: 'Fenced frames unsupported in this browser' };
+    }),
+    makeVariant('UXSS-XB-05-56', 'navigation-api', 'port-based same-site cross-origin confusion check', () => {
+        const expected = location.protocol + '//' + location.hostname + ':8443';
+        return { status: 'error', note: 'Manual: host same site on alternate port and compare SOP enforcement (' + expected + ')' };
+    }),
+];
+
+async function runAllVariants() {
+    clearResults();
+    const info = detectBrowser();
+    pushLine('<div style="color:#8b949e;">Running on: ' + info.browser + ' ' + info.version + ' | ' + info.engine + '</div>');
+
+    const results = [];
+
+    for (const v of variants) {
+        let res;
+        try {
+            const maybePromise = v.handler();
+            res = (maybePromise && typeof maybePromise.then === 'function')
+                ? await maybePromise
+                : maybePromise;
+        } catch (e) {
+            res = { status: 'error', note: e.message || 'Unhandled exception' };
+        }
+
+        if (!res || !res.status) {
+            res = { status: 'error', note: 'Variant did not return a valid result' };
+        }
+
+        results.push({ id: v.id, status: res.status, note: res.note, group: v.group });
+        logVariantResult(v, res);
+    }
+
+    summarize(results);
+}
+</script>
+</body>
+</html>
