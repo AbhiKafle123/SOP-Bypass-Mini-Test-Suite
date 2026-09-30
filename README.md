@@ -70,6 +70,8 @@ research/
   query.js            version-to-vulnerability matcher
   dossier-*.md        full research dossiers, source URL per claim
 .claude/agents/       four agents for extending the suite
+poc/
+  cve-2025-9180/      standalone hosted POC for the Firefox Canvas2D SOP bypass
 results/              run artefacts; latest.json + report.html
 tests/, legacy/       V2.0 and V1.0 HTML demonstration pages (unchanged)
 ```
@@ -157,6 +159,20 @@ Firefox and WebKit were **not executed** in the environment that produced the
 current results — no binaries were obtainable there. The runner records this in
 `enginesUnavailable` rather than omitting it. Non-Chromium expectations in this
 suite are documentation, not observation.
+
+## Standalone POC
+
+`poc/cve-2025-9180/` is a self-contained POC for the Firefox Canvas2D SOP bypass that
+runs on a **single** host. It manufactures a real cross-origin taint by loading its own
+`target.png` from inside a `sandbox="allow-scripts"` frame, whose origin is opaque — so
+the page's own image is cross-origin to the code drawing it. `target.png` encodes a fixed
+string one byte per pixel, so a successful read reconstructs that exact string rather
+than "some pixels".
+
+Four routes are tried and each reports the gate that stopped it. Chromium refuses the
+`ImageBitmap` handoff two gates before the flag this CVE concerns, which is why the
+same-thread route (R3) is the cleanest read of the mechanism. See
+[poc/cve-2025-9180/README.md](poc/cve-2025-9180/README.md).
 
 ## Corrections to V2.0
 
