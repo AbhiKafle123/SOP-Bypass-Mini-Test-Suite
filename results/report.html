@@ -1,0 +1,392 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SOP Lab results</title>
+<style>
+ :root{color-scheme:light dark;--bg:#0f1115;--fg:#d7dae0;--mut:#8b93a1;--line:#242832}
+ body{margin:0;padding:24px;background:var(--bg);color:var(--fg);
+      font:13px/1.55 ui-monospace,SFMono-Regular,Menlo,monospace}
+ h1{font-size:17px;margin:0 0 2px}
+ .sub{color:var(--mut);font-size:12px;margin-bottom:18px}
+ table{border-collapse:collapse;width:100%;margin-top:10px}
+ th,td{text-align:left;padding:7px 9px;border-bottom:1px solid var(--line);
+       vertical-align:top;font-size:12px}
+ th{color:var(--mut);font-weight:600;text-transform:uppercase;font-size:10.5px;
+    letter-spacing:.06em}
+ .badge{padding:1px 7px;border-radius:3px;font-size:11px;font-weight:600}
+ .b-BYPASS{background:#7f1d1d;color:#fecaca}
+ .b-BLOCKED{background:#14532d;color:#bbf7d0}
+ .b-INCONCLUSIVE{background:#78350f;color:#fde68a}
+ .b-UNSUPPORTED{background:#1f2937;color:#9ca3af}
+ .b-ERROR{background:#4c1d95;color:#ddd6fe}
+ .dv{margin-left:6px;color:#fbbf24;font-size:10.5px}
+ .d{color:var(--mut)}
+ .warn{color:#fbbf24}
+ .yes{color:#86efac}.no{color:#4b5563}
+ .detail{max-width:46ch}
+ ul{margin:6px 0 0;padding-left:18px;color:var(--mut)}
+ .cards{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0}
+ .card{border:1px solid var(--line);border-radius:6px;padding:9px 14px;min-width:96px}
+ .card b{display:block;font-size:19px}
+ code{color:#93c5fd}
+</style></head><body>
+<h1>SOP Lab results</h1>
+<div class="sub">run 1c46e2d81f0d &middot; 2026-09-30T01:05:37.455Z &middot;
+ canary <code>SOPLAB-CANARY-1CE4B63A…</code></div>
+<div class="cards">
+<div class="card"><b>17</b>blocked</div><div class="card"><b>8</b>bypass</div><div class="card"><b>4</b>inconclusive</div>
+</div>
+<h3>Engines</h3><ul><li><b>chromium</b> —
+    Chromium 141.0.7390.37<br>
+    <code>Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/141.0.0.0 Safari/537.36</code></li></ul>
+<table><thead><tr><th>Probe</th><th>Lane</th><th>Verdict</th><th>Expected</th>
+<th>Engine</th><th>Ran on</th><th>Canary</th><th>Title / detail</th></tr></thead>
+<tbody><tr class="v-BLOCKED">
+  <td><code>ORACLE-01-documented-vs-loaded</code></td>
+  <td>origin-oracle</td>
+  <td><span class="badge b-BLOCKED">BLOCKED</span>
+      </td>
+  <td>BLOCKED</td>
+  <td>chromium</td>
+  <td>ATTACKER</td>
+  <td><span class="no">-</span></td>
+  <td class="detail">Documented origin vs actually-loaded origin reconciliation<br><span class="d">documented=https://documented.sop-lab.test:8443 loaded=https://attacker.sop-lab.test:8443 authorisedReader=false — canary not readable, CORS held</span>
+      </td>
+</tr>
+<tr class="v-BYPASS">
+  <td><code>ORACLE-02-cors-wildcard-read</code></td>
+  <td>origin-oracle</td>
+  <td><span class="badge b-BYPASS">BYPASS</span>
+      </td>
+  <td>BYPASS</td>
+  <td>chromium</td>
+  <td>ATTACKER</td>
+  <td><b class="yes">verified</b></td>
+  <td class="detail">Cross-origin JSON read permitted by wildcard ACAO<br><span class="d">wildcard ACAO let an unauthorised origin read canary material</span>
+      </td>
+</tr>
+<tr class="v-BLOCKED">
+  <td><code>HDR-01-no-cors-json-read</code></td>
+  <td>header-policy</td>
+  <td><span class="badge b-BLOCKED">BLOCKED</span>
+      </td>
+  <td>BLOCKED</td>
+  <td>chromium</td>
+  <td>ATTACKER</td>
+  <td><span class="no">-</span></td>
+  <td class="detail">Cross-origin JSON read with no CORS headers (baseline enforcement)<br><span class="d">fetch rejected as expected: Failed to fetch</span>
+      </td>
+</tr>
+<tr class="v-BLOCKED">
+  <td><code>HDR-02-opaque-response-read</code></td>
+  <td>header-policy</td>
+  <td><span class="badge b-BLOCKED">BLOCKED</span>
+      </td>
+  <td>BLOCKED</td>
+  <td>chromium</td>
+  <td>ATTACKER</td>
+  <td><span class="no">-</span></td>
+  <td class="detail">no-cors opaque response body is unreadable<br><span class="d">type=opaque status=0 bodyLen=0 — request was dispatched; body opaque as required</span>
+      </td>
+</tr>
+<tr class="v-BLOCKED">
+  <td><code>HDR-03-link-header-referrer-leak</code></td>
+  <td>header-policy</td>
+  <td><span class="badge b-BLOCKED">BLOCKED</span>
+      </td>
+  <td>BLOCKED</td>
+  <td>chromium</td>
+  <td>VICTIM</td>
+  <td><span class="no">-</span></td>
+  <td class="detail">Link header referrerpolicy=unsafe-url referrer leak (CVE-2025-4664)<br><span class="d">sink hits=1 canary-bearing=0 — referrer was stripped or Link was not honoured on the subresource</span>
+      </td>
+</tr>
+<tr class="v-BYPASS">
+  <td><code>SCRIPT-01-cross-origin-script-tag</code></td>
+  <td>script-execution</td>
+  <td><span class="badge b-BYPASS">BYPASS</span>
+      </td>
+  <td>BYPASS</td>
+  <td>chromium</td>
+  <td>ATTACKER</td>
+  <td><b class="yes">verified</b></td>
+  <td class="detail">Cross-origin &lt;script src&gt; executes in the embedding origin (XSSI)<br><span class="d">victim-origin script body executed in the attacker origin and handed over canary material</span>
+      </td>
+</tr>
+<tr class="v-BLOCKED">
+  <td><code>SCRIPT-02-script-error-message-leak</code></td>
+  <td>script-execution</td>
+  <td><span class="badge b-BLOCKED">BLOCKED</span>
+      </td>
+  <td>BLOCKED</td>
+  <td>chromium</td>
+  <td>ATTACKER</td>
+  <td><span class="no">-</span></td>
+  <td class="detail">window.onerror message sanitisation for cross-origin scripts<br><span class="d">muted=true msg=&quot;Script error.&quot;</span>
+      </td>
+</tr>
+<tr class="v-BYPASS">
+  <td><code>SANDBOX-01-allow-scripts-allow-same-origin-escape</code></td>
+  <td>sandbox-confinement</td>
+  <td><span class="badge b-BYPASS">BYPASS</span>
+      </td>
+  <td>BYPASS</td>
+  <td>chromium</td>
+  <td>VICTIM</td>
+  <td><b class="yes">verified</b></td>
+  <td class="detail">sandbox=&quot;allow-scripts allow-same-origin&quot; escapes its own sandbox<br><span class="d">reachedParent=true sandboxCleared=true</span>
+      </td>
+</tr>
+<tr class="v-BLOCKED">
+  <td><code>SANDBOX-02-cross-origin-sandbox-holds</code></td>
+  <td>sandbox-confinement</td>
+  <td><span class="badge b-BLOCKED">BLOCKED</span>
+      </td>
+  <td>BLOCKED</td>
+  <td>chromium</td>
+  <td>VICTIM</td>
+  <td><span class="no">-</span></td>
+  <td class="detail">Sandboxed cross-origin frame stays confined<br><span class="d">blocked: SecurityError: Failed to read a named property 'document' from 'Window': Blocked a frame with origin &quot;https://victim.sop-lab.test:8443&quot; from accessing a cross-origin frame.</span>
+      </td>
+</tr>
+<tr class="v-BYPASS">
+  <td><code>INHERIT-01-srcdoc-inherits-embedder-origin</code></td>
+  <td>origin-inheritance</td>
+  <td><span class="badge b-BYPASS">BYPASS</span>
+      </td>
+  <td>BYPASS</td>
+  <td>chromium</td>
+  <td>VICTIM</td>
+  <td><b class="yes">verified</b></td>
+  <td class="detail">iframe srcdoc runs in the embedder origin<br><span class="d">frame origin=null</span>
+      </td>
+</tr>
+<tr class="v-BYPASS">
+  <td><code>INHERIT-02-blob-url-inherits-creator-origin</code></td>
+  <td>origin-inheritance</td>
+  <td><span class="badge b-BYPASS">BYPASS</span>
+      </td>
+  <td>BYPASS</td>
+  <td>chromium</td>
+  <td>VICTIM</td>
+  <td><b class="yes">verified</b></td>
+  <td class="detail">blob: URL document inherits its creator origin<br><span class="d">blobUrl=blob:https://victim.sop-lab.test:8443/54ec85bc-6e3c-4364-aee0-1a frame origin=https://victim.sop-lab.test:8443</span>
+      </td>
+</tr>
+<tr class="v-BLOCKED">
+  <td><code>INHERIT-03-cross-origin-blob-fetch</code></td>
+  <td>origin-inheritance</td>
+  <td><span class="badge b-BLOCKED">BLOCKED</span>
+      </td>
+  <td>BLOCKED</td>
+  <td>chromium</td>
+  <td>ATTACKER</td>
+  <td><span class="no">-</span></td>
+  <td class="detail">blob: URL minted on one origin, dereferenced from another<br><span class="d">blobUrl=blob:https://victim.sop-lab.test:8443/36594c4e-dfa6-455e-bf85-f9b5d476d3 | fetch=rejected: TypeError: Failed to fetch | frameRead=len=0 — holding a foreign origin's blob URL is not sufficient; the store is partitioned</span>
+      </td>
+</tr>
+<tr class="v-BLOCKED">
+  <td><code>INHERIT-04-javascript-uri-frame-navigation</code></td>
+  <td>origin-inheritance</td>
+  <td><span class="badge b-BLOCKED">BLOCKED</span>
+      </td>
+  <td>BLOCKED</td>
+  <td>chromium</td>
+  <td>VICTIM</td>
+  <td><span class="no">-</span></td>
+  <td class="detail">javascript: URI navigation of a cross-origin frame<br><span class="d">javascript: URI did not execute in the cross-origin frame (SecurityError: Failed to set a named property 'href' on 'Location': The current window does not have permission to navig)</span>
+      </td>
+</tr>
+<tr class="v-BLOCKED">
+  <td><code>RELAX-01-document-domain-default</code></td>
+  <td>origin-relaxation</td>
+  <td><span class="badge b-BLOCKED">BLOCKED</span>
+      </td>
+  <td>BLOCKED</td>
+  <td>chromium</td>
+  <td>SIBLING</td>
+  <td><span class="no">-</span></td>
+  <td class="detail">document.domain relaxation with default agent clustering<br><span class="d">domain sub.victim.sop-lab.test -&gt; sub.victim.sop-lab.test (setter was a silent no-op) originAgentCluster=true setterOk crossRead=SecurityError: Failed to read a named property 'document' from 'Window': Blocked a frame with origin &quot;https://sub.victim.sop-lab.test:8443&quot; from accessing a cross-origin frame.</span>
+      </td>
+</tr>
+<tr class="v-BYPASS">
+  <td><code>RELAX-02-document-domain-mutual-optout</code></td>
+  <td>origin-relaxation</td>
+  <td><span class="badge b-BYPASS">BYPASS</span>
+      </td>
+  <td>BYPASS</td>
+  <td>chromium</td>
+  <td>SIBLING</td>
+  <td><b class="yes">verified</b></td>
+  <td class="detail">document.domain relaxation with Origin-Agent-Cluster: ?0 on both documents<br><span class="d">self.domain=sop-lab.test selfRelaxed=true originAgentCluster=false (opt-out honoured) setterOk frameRelaxedTo=sop-lab.test crossRead=RESOLVED</span>
+      </td>
+</tr>
+<tr class="v-BLOCKED">
+  <td><code>RELAX-03-unilateral-relaxation-rejected</code></td>
+  <td>origin-relaxation</td>
+  <td><span class="badge b-BLOCKED">BLOCKED</span>
+      </td>
+  <td>BLOCKED</td>
+  <td>chromium</td>
+  <td>SIBLING</td>
+  <td><span class="no">-</span></td>
+  <td class="detail">Unilateral document.domain relaxation does not open the boundary<br><span class="d">self.domain=sop-lab.test (relaxed) target=NOT relaxed setterOk crossRead=blocked, mutual opt-in correctly required</span>
+      </td>
+</tr>
+<tr class="v-BLOCKED">
+  <td><code>OPENER-01-cross-origin-window-property-surface</code></td>
+  <td>opener-navigation</td>
+  <td><span class="badge b-BLOCKED">BLOCKED</span>
+      </td>
+  <td>BLOCKED</td>
+  <td>chromium</td>
+  <td>ATTACKER</td>
+  <td><span class="no">-</span></td>
+  <td class="detail">Readable property surface of a cross-origin Window<br><span class="d">readable=[length=0, closed=false] blocked=9 outsideAllowlist=[]</span>
+      </td>
+</tr>
+<tr class="v-INCONCLUSIVE">
+  <td><code>OPENER-02-frame-count-state-leak</code></td>
+  <td>opener-navigation</td>
+  <td><span class="badge b-INCONCLUSIVE">INCONCLUSIVE</span>
+      </td>
+  <td>INCONCLUSIVE</td>
+  <td>chromium</td>
+  <td>ATTACKER</td>
+  <td><span class="no">-</span></td>
+  <td class="detail">window.length as a cross-origin state oracle<br><span class="d">cross-origin frames.length readable = 0 (state oracle, no canary crosses)</span>
+      </td>
+</tr>
+<tr class="v-BLOCKED">
+  <td><code>OPENER-03-named-window-overwrite</code></td>
+  <td>opener-navigation</td>
+  <td><span class="badge b-BLOCKED">BLOCKED</span>
+      </td>
+  <td>BLOCKED</td>
+  <td>chromium</td>
+  <td>ATTACKER</td>
+  <td><span class="no">-</span></td>
+  <td class="detail">Cross-origin window.name write-through<br><span class="d">write threw: SecurityError: Failed to set a named property 'name' on 'Window': Blocked a frame with ori; readback blocked — name is a channel, not a canary read</span>
+      </td>
+</tr>
+<tr class="v-BYPASS">
+  <td><code>MSG-01-postmessage-wildcard-target</code></td>
+  <td>messaging</td>
+  <td><span class="badge b-BYPASS">BYPASS</span>
+      </td>
+  <td>BYPASS</td>
+  <td>chromium</td>
+  <td>ATTACKER</td>
+  <td><b class="yes">verified</b></td>
+  <td class="detail">postMessage with targetOrigin &quot;*&quot; delivers to any origin<br><span class="d">received from origin=https://victim.sop-lab.test:8443 at listener on https://attacker.sop-lab.test:8443 — wildcard targetOrigin delivered victim-origin secret to a foreign listener with no origin check</span>
+      </td>
+</tr>
+<tr class="v-BLOCKED">
+  <td><code>MSG-02-message-origin-attribution</code></td>
+  <td>messaging</td>
+  <td><span class="badge b-BLOCKED">BLOCKED</span>
+      </td>
+  <td>BLOCKED</td>
+  <td>chromium</td>
+  <td>ATTACKER</td>
+  <td><span class="no">-</span></td>
+  <td class="detail">MessageEvent.origin is correctly attributed<br><span class="d">messages=0 misattributed=0 origins=[]</span>
+      </td>
+</tr>
+<tr class="v-INCONCLUSIVE">
+  <td><code>SIDE-01-status-code-onerror-oracle</code></td>
+  <td>side-channel</td>
+  <td><span class="badge b-INCONCLUSIVE">INCONCLUSIVE</span>
+      </td>
+  <td>INCONCLUSIVE</td>
+  <td>chromium</td>
+  <td>ATTACKER</td>
+  <td><span class="no">-</span></td>
+  <td class="detail">Cross-origin HTTP status oracle via load/error events<br><span class="d">200=&gt;load 404=&gt;error — status distinguishable cross-origin (oracle open)</span>
+      </td>
+</tr>
+<tr class="v-INCONCLUSIVE">
+  <td><code>SIDE-02-resource-timing-visibility</code></td>
+  <td>side-channel</td>
+  <td><span class="badge b-INCONCLUSIVE">INCONCLUSIVE</span>
+      </td>
+  <td>INCONCLUSIVE</td>
+  <td>chromium</td>
+  <td>ATTACKER</td>
+  <td><span class="no">-</span></td>
+  <td class="detail">Cross-origin entries in the Resource Timing buffer<br><span class="d">entry present; duration=256ms responseStart=0 redirectCount=undefined timingsCoarsened=true — existence and duration leak regardless</span>
+      </td>
+</tr>
+<tr class="v-INCONCLUSIVE">
+  <td><code>SIDE-03-cross-origin-redirect-chain-leak</code></td>
+  <td>side-channel</td>
+  <td><span class="badge b-INCONCLUSIVE">INCONCLUSIVE</span>
+      </td>
+  <td>INCONCLUSIVE</td>
+  <td>chromium</td>
+  <td>ATTACKER</td>
+  <td><span class="no">-</span></td>
+  <td class="detail">Redirect destination inference across origins<br><span class="d">opaqueFinalUrl=&quot;&quot; redirectedFlag=false timingRedirectCount=undefined — destination hidden, occurrence observable</span>
+      </td>
+</tr>
+<tr class="v-BLOCKED">
+  <td><code>CANVAS-01-crossorigin-draw-taints</code></td>
+  <td>canvas-sop</td>
+  <td><span class="badge b-BLOCKED">BLOCKED</span>
+      </td>
+  <td>BLOCKED</td>
+  <td>chromium</td>
+  <td>ATTACKER</td>
+  <td><span class="no">-</span></td>
+  <td class="detail">Drawing a non-CORS cross-origin image taints the canvas<br><span class="d">imageWidth=46 getImageData=threw (tainted, correct) toDataURL=threw SecurityError (tainted, correct)</span>
+      </td>
+</tr>
+<tr class="v-BLOCKED">
+  <td><code>CANVAS-02-offscreen-transfer-taint-propagation</code></td>
+  <td>canvas-sop</td>
+  <td><span class="badge b-BLOCKED">BLOCKED</span>
+      </td>
+  <td>BLOCKED</td>
+  <td>chromium</td>
+  <td>ATTACKER</td>
+  <td><span class="no">-</span></td>
+  <td class="detail">OffscreenCanvas taint propagates back to the placeholder element (CVE-2025-9180)<br><span class="d">gates=[transfer-bitmap:refused(DataCloneError) | copy-bitmap:refused(DataCloneError) | worker-fetch:accepted] worker={&quot;drew&quot;:false,&quot;route&quot;:&quot;worker-fetch&quot;,&quot;err&quot;:null,&quot;workerFetchErr&quot;:&quot;InvalidStateError&quot;} mainThread toDataURL=RESOLVED len=154 recoveredPixels=&quot;\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000&quot; — placeholder readback was gated</span>
+      </td>
+</tr>
+<tr class="v-BYPASS">
+  <td><code>CANVAS-03-cors-image-read-authorised</code></td>
+  <td>canvas-sop</td>
+  <td><span class="badge b-BYPASS">BYPASS</span>
+      </td>
+  <td>BYPASS</td>
+  <td>chromium</td>
+  <td>ATTACKER</td>
+  <td><b class="yes">verified</b></td>
+  <td class="detail">CORS-approved cross-origin image is legitimately readable<br><span class="d">width=46 getImageData=resolved — CORS grant makes the read authorised; recorded as BYPASS because the canary does cross the origin boundary</span>
+      </td>
+</tr>
+<tr class="v-BLOCKED">
+  <td><code>STORE-01-localstorage-partition</code></td>
+  <td>storage-isolation</td>
+  <td><span class="badge b-BLOCKED">BLOCKED</span>
+      </td>
+  <td>BLOCKED</td>
+  <td>chromium</td>
+  <td>VICTIM</td>
+  <td><span class="no">-</span></td>
+  <td class="detail">localStorage is keyed to the exact origin tuple<br><span class="d">altport read=blocked: SecurityError: Failed to read a named property 'eval' from 'Window': Blocked a frame with origin &quot;https://victim.sop-lab — port is  part of the storage key</span>
+      </td>
+</tr>
+<tr class="v-BLOCKED">
+  <td><code>STORE-02-scheme-isolation</code></td>
+  <td>storage-isolation</td>
+  <td><span class="badge b-BLOCKED">BLOCKED</span>
+      </td>
+  <td>BLOCKED</td>
+  <td>chromium</td>
+  <td>VICTIM</td>
+  <td><span class="no">-</span></td>
+  <td class="detail">http and https views of one host are distinct origins<br><span class="d">read resolved across scheme boundary</span>
+      </td>
+</tr></tbody></table>
+</body></html>

@@ -1,0 +1,1010 @@
+{
+  "schema": "sop-lab/run/1",
+  "generatedAt": "2026-09-30T01:05:37.455Z",
+  "runId": "1c46e2d81f0d",
+  "canaryFingerprint": "SOPLAB-CANARY-1CE4B63A…",
+  "origins": {
+    "VICTIM": "https://victim.sop-lab.test:8443",
+    "DOCUMENTED": "https://documented.sop-lab.test:8443",
+    "ATTACKER": "https://attacker.sop-lab.test:8443",
+    "SIBLING": "https://sub.victim.sop-lab.test:8443",
+    "PARENT": "https://sop-lab.test:8443",
+    "ALTPORT": "https://victim.sop-lab.test:9443",
+    "INSECURE": "http://victim.sop-lab.test:8080"
+  },
+  "enginesRequested": [
+    "chromium",
+    "firefox",
+    "webkit"
+  ],
+  "enginesRun": [
+    "chromium"
+  ],
+  "enginesUnavailable": [
+    {
+      "engine": "firefox",
+      "reason": "no binary found on this machine"
+    },
+    {
+      "engine": "webkit",
+      "reason": "no binary found on this machine"
+    }
+  ],
+  "summary": {
+    "counts": {
+      "BLOCKED": 17,
+      "BYPASS": 8,
+      "INCONCLUSIVE": 4
+    },
+    "verifiedBypasses": [
+      {
+        "id": "ORACLE-02-cors-wildcard-read",
+        "engine": "chromium",
+        "lane": "origin-oracle",
+        "detail": "wildcard ACAO let an unauthorised origin read canary material"
+      },
+      {
+        "id": "SCRIPT-01-cross-origin-script-tag",
+        "engine": "chromium",
+        "lane": "script-execution",
+        "detail": "victim-origin script body executed in the attacker origin and handed over canary material"
+      },
+      {
+        "id": "SANDBOX-01-allow-scripts-allow-same-origin-escape",
+        "engine": "chromium",
+        "lane": "sandbox-confinement",
+        "detail": "reachedParent=true sandboxCleared=true"
+      },
+      {
+        "id": "INHERIT-01-srcdoc-inherits-embedder-origin",
+        "engine": "chromium",
+        "lane": "origin-inheritance",
+        "detail": "frame origin=null"
+      },
+      {
+        "id": "INHERIT-02-blob-url-inherits-creator-origin",
+        "engine": "chromium",
+        "lane": "origin-inheritance",
+        "detail": "blobUrl=blob:https://victim.sop-lab.test:8443/54ec85bc-6e3c-4364-aee0-1a frame origin=https://victim.sop-lab.test:8443"
+      },
+      {
+        "id": "RELAX-02-document-domain-mutual-optout",
+        "engine": "chromium",
+        "lane": "origin-relaxation",
+        "detail": "self.domain=sop-lab.test selfRelaxed=true originAgentCluster=false (opt-out honoured) setterOk frameRelaxedTo=sop-lab.test crossRead=RESOLVED"
+      },
+      {
+        "id": "MSG-01-postmessage-wildcard-target",
+        "engine": "chromium",
+        "lane": "messaging",
+        "detail": "received from origin=https://victim.sop-lab.test:8443 at listener on https://attacker.sop-lab.test:8443 — wildcard targetOrigin delivered victim-origin secret to a foreign listener with no origin check"
+      },
+      {
+        "id": "CANVAS-03-cors-image-read-authorised",
+        "engine": "chromium",
+        "lane": "canvas-sop",
+        "detail": "width=46 getImageData=resolved — CORS grant makes the read authorised; recorded as BYPASS because the canary does cross the origin boundary"
+      }
+    ],
+    "divergences": []
+  },
+  "runs": [
+    {
+      "meta": {
+        "engine": "chromium",
+        "executablePath": "/opt/pw-browsers/chromium-1194/chrome-linux/chrome",
+        "binaryVersion": "Chromium 141.0.7390.37",
+        "playwrightBuild": {
+          "channelDir": "chromium",
+          "revision": "1194"
+        },
+        "protocolVersion": "141.0.7390.37",
+        "playwrightCore": "1.63.0",
+        "launchArgs": [
+          "--ignore-certificate-errors",
+          "--no-sandbox",
+          "--disable-dev-shm-usage",
+          "--disable-gpu",
+          "--no-first-run",
+          "--disable-features=Translate,MediaRouter",
+          "--no-proxy-server"
+        ],
+        "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/141.0.0.0 Safari/537.36"
+      },
+      "results": [
+        {
+          "id": "ORACLE-01-documented-vs-loaded",
+          "lane": "origin-oracle",
+          "title": "Documented origin vs actually-loaded origin reconciliation",
+          "why": "Establishes the boundary every other probe is measured against: what origin does the content declare, what origin is it really running in, and which origins the manifest authorises to read canary material.",
+          "runOn": "ATTACKER",
+          "references": [
+            "RFC 6454 §3 (origin as security principal)"
+          ],
+          "expect": {
+            "chromium": "BLOCKED",
+            "firefox": "BLOCKED",
+            "webkit": "BLOCKED"
+          },
+          "loadedOrigin": "https://attacker.sop-lab.test:8443",
+          "ms": 16,
+          "verdict": "BLOCKED",
+          "detail": "documented=https://documented.sop-lab.test:8443 loaded=https://attacker.sop-lab.test:8443 authorisedReader=false — canary not readable, CORS held",
+          "evidence": null,
+          "documentedOrigin": "https://documented.sop-lab.test:8443",
+          "authorisedReader": false,
+          "engine": "chromium",
+          "servedFrom": "https://attacker.sop-lab.test:8443",
+          "harnessUrl": "https://attacker.sop-lab.test:8443/probes/harness.html",
+          "consoleErrors": [
+            "Failed to load resource: the server responded with a status of 404 (Not Found)",
+            "Access to fetch at 'https://victim.sop-lab.test:8443/lab/canary.json' from origin 'https://attacker.sop-lab.test:8443' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is prese",
+            "Failed to load resource: net::ERR_FAILED"
+          ],
+          "claimedVerdict": "BLOCKED",
+          "canaryVerified": false,
+          "expected": "BLOCKED",
+          "divergesFromExpectation": false
+        },
+        {
+          "id": "ORACLE-02-cors-wildcard-read",
+          "lane": "origin-oracle",
+          "title": "Cross-origin JSON read permitted by wildcard ACAO",
+          "why": "Control case proving the oracle detects a real boundary crossing. The server is told to answer with Access-Control-Allow-Origin: *, which is the single most common real-world SOP giveaway.",
+          "runOn": "ATTACKER",
+          "references": [
+            "Fetch Standard §3.2 CORS protocol"
+          ],
+          "expect": {
+            "chromium": "BYPASS",
+            "firefox": "BYPASS",
+            "webkit": "BYPASS"
+          },
+          "loadedOrigin": "https://attacker.sop-lab.test:8443",
+          "ms": 7,
+          "verdict": "BYPASS",
+          "detail": "wildcard ACAO let an unauthorised origin read canary material",
+          "evidence": "<CANARY:verified-in-run>",
+          "engine": "chromium",
+          "servedFrom": "https://attacker.sop-lab.test:8443",
+          "harnessUrl": "https://attacker.sop-lab.test:8443/probes/harness.html",
+          "consoleErrors": [],
+          "claimedVerdict": "BYPASS",
+          "canaryVerified": true,
+          "expected": "BYPASS",
+          "divergesFromExpectation": false
+        },
+        {
+          "id": "HDR-01-no-cors-json-read",
+          "lane": "header-policy",
+          "title": "Cross-origin JSON read with no CORS headers (baseline enforcement)",
+          "why": "The negative control for the whole suite. If this returns BYPASS the engine is catastrophically broken or the harness is misconfigured; every other result should be distrusted until it is explained.",
+          "runOn": "ATTACKER",
+          "references": [
+            "Fetch Standard §3.2"
+          ],
+          "expect": {
+            "chromium": "BLOCKED",
+            "firefox": "BLOCKED",
+            "webkit": "BLOCKED"
+          },
+          "loadedOrigin": "https://attacker.sop-lab.test:8443",
+          "ms": 6,
+          "verdict": "BLOCKED",
+          "detail": "fetch rejected as expected: Failed to fetch",
+          "evidence": null,
+          "engine": "chromium",
+          "servedFrom": "https://attacker.sop-lab.test:8443",
+          "harnessUrl": "https://attacker.sop-lab.test:8443/probes/harness.html",
+          "consoleErrors": [
+            "Access to fetch at 'https://victim.sop-lab.test:8443/lab/canary.json' from origin 'https://attacker.sop-lab.test:8443' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is prese",
+            "Failed to load resource: net::ERR_FAILED"
+          ],
+          "claimedVerdict": "BLOCKED",
+          "canaryVerified": false,
+          "expected": "BLOCKED",
+          "divergesFromExpectation": false
+        },
+        {
+          "id": "HDR-02-opaque-response-read",
+          "lane": "header-policy",
+          "title": "no-cors opaque response body is unreadable",
+          "why": "mode:no-cors returns an opaque filtered response. The request is sent and cookies may ride along, but the body must not be readable — the distinction between \"request happened\" and \"response readable\".",
+          "runOn": "ATTACKER",
+          "references": [
+            "Fetch Standard §2.2.4 filtered responses"
+          ],
+          "expect": {
+            "chromium": "BLOCKED",
+            "firefox": "BLOCKED",
+            "webkit": "BLOCKED"
+          },
+          "loadedOrigin": "https://attacker.sop-lab.test:8443",
+          "ms": 6,
+          "verdict": "BLOCKED",
+          "detail": "type=opaque status=0 bodyLen=0 — request was dispatched; body opaque as required",
+          "evidence": null,
+          "engine": "chromium",
+          "servedFrom": "https://attacker.sop-lab.test:8443",
+          "harnessUrl": "https://attacker.sop-lab.test:8443/probes/harness.html",
+          "consoleErrors": [],
+          "claimedVerdict": "BLOCKED",
+          "canaryVerified": false,
+          "expected": "BLOCKED",
+          "divergesFromExpectation": false
+        },
+        {
+          "id": "HDR-03-link-header-referrer-leak",
+          "lane": "header-policy",
+          "title": "Link header referrerpolicy=unsafe-url referrer leak (CVE-2025-4664)",
+          "why": "Chrome uniquely resolved the Link header on subresource responses, so a response could downgrade the referrer policy of the request that fetched it and leak the full referrer URL, query string included. Fixed in the 136 line; on a patched build this must be BLOCKED.",
+          "runOn": "VICTIM",
+          "references": [
+            "CVE-2025-4664",
+            "CISA KEV"
+          ],
+          "expect": {
+            "chromium": "BLOCKED",
+            "firefox": "BLOCKED",
+            "webkit": "BLOCKED"
+          },
+          "loadedOrigin": "https://victim.sop-lab.test:8443",
+          "ms": 1210,
+          "verdict": "BLOCKED",
+          "detail": "sink hits=1 canary-bearing=0 — referrer was stripped or Link was not honoured on the subresource",
+          "evidence": null,
+          "engine": "chromium",
+          "servedFrom": "https://victim.sop-lab.test:8443",
+          "harnessUrl": "https://victim.sop-lab.test:8443/probes/harness.html",
+          "consoleErrors": [],
+          "claimedVerdict": "BLOCKED",
+          "canaryVerified": false,
+          "expected": "BLOCKED",
+          "divergesFromExpectation": false
+        },
+        {
+          "id": "SCRIPT-01-cross-origin-script-tag",
+          "lane": "script-execution",
+          "title": "Cross-origin <script src> executes in the embedding origin (XSSI)",
+          "why": "SOP never restricted script *execution* by origin, only reading the source text. A cross-origin script runs with the embedder's authority, so any secret the response body assigns to a global has crossed the boundary. This is the XSSI / JSONP class and it is not a bug in any engine — it is the model working as specified, which is exactly why it remains exploitable.",
+          "runOn": "ATTACKER",
+          "references": [
+            "RFC 6454",
+            "OWASP XSSI"
+          ],
+          "expect": {
+            "chromium": "BYPASS",
+            "firefox": "BYPASS",
+            "webkit": "BYPASS"
+          },
+          "loadedOrigin": "https://attacker.sop-lab.test:8443",
+          "ms": 41,
+          "verdict": "BYPASS",
+          "detail": "victim-origin script body executed in the attacker origin and handed over canary material",
+          "evidence": "<CANARY:verified-in-run>",
+          "engine": "chromium",
+          "servedFrom": "https://attacker.sop-lab.test:8443",
+          "harnessUrl": "https://attacker.sop-lab.test:8443/probes/harness.html",
+          "consoleErrors": [],
+          "claimedVerdict": "BYPASS",
+          "canaryVerified": true,
+          "expected": "BYPASS",
+          "divergesFromExpectation": false
+        },
+        {
+          "id": "SCRIPT-02-script-error-message-leak",
+          "lane": "script-execution",
+          "title": "window.onerror message sanitisation for cross-origin scripts",
+          "why": "Cross-origin script errors must be reported as the opaque \"Script error.\" with no line or column, otherwise error text becomes a read channel into a cross-origin response body.",
+          "runOn": "ATTACKER",
+          "references": [
+            "HTML Standard: muted errors"
+          ],
+          "expect": {
+            "chromium": "BLOCKED",
+            "firefox": "BLOCKED",
+            "webkit": "BLOCKED"
+          },
+          "loadedOrigin": "https://attacker.sop-lab.test:8443",
+          "ms": 42,
+          "verdict": "BLOCKED",
+          "detail": "muted=true msg=\"Script error.\"",
+          "evidence": null,
+          "engine": "chromium",
+          "servedFrom": "https://attacker.sop-lab.test:8443",
+          "harnessUrl": "https://attacker.sop-lab.test:8443/probes/harness.html",
+          "consoleErrors": [
+            "pageerror: Unexpected identifier 'is'"
+          ],
+          "claimedVerdict": "BLOCKED",
+          "canaryVerified": false,
+          "expected": "BLOCKED",
+          "divergesFromExpectation": false
+        },
+        {
+          "id": "SANDBOX-01-allow-scripts-allow-same-origin-escape",
+          "lane": "sandbox-confinement",
+          "title": "sandbox=\"allow-scripts allow-same-origin\" escapes its own sandbox",
+          "why": "Granting both tokens to same-origin content is self-defeating: the frame keeps the embedder's origin, so it can reach parent.document, read anything there, and delete its own sandbox attribute. Any site serving attacker-controlled content (uploads, previews, templates) from its own origin under these two tokens has handed that content full origin authority. The HTML spec warns about this explicitly; no engine treats it as a bug, which is why it keeps shipping.",
+          "runOn": "VICTIM",
+          "references": [
+            "HTML Standard §sandbox attribute warning"
+          ],
+          "expect": {
+            "chromium": "BYPASS",
+            "firefox": "BYPASS",
+            "webkit": "BYPASS"
+          },
+          "loadedOrigin": "https://victim.sop-lab.test:8443",
+          "ms": 171,
+          "verdict": "BYPASS",
+          "detail": "reachedParent=true sandboxCleared=true",
+          "evidence": "<CANARY:verified-in-run>",
+          "engine": "chromium",
+          "servedFrom": "https://victim.sop-lab.test:8443",
+          "harnessUrl": "https://victim.sop-lab.test:8443/probes/harness.html",
+          "consoleErrors": [],
+          "claimedVerdict": "BYPASS",
+          "canaryVerified": true,
+          "expected": "BYPASS",
+          "divergesFromExpectation": false
+        },
+        {
+          "id": "SANDBOX-02-cross-origin-sandbox-holds",
+          "lane": "sandbox-confinement",
+          "title": "Sandboxed cross-origin frame stays confined",
+          "why": "Same two tokens, but the frame is genuinely cross-origin. The escape must fail here, which is what proves SANDBOX-01 is about origin inheritance rather than a sandbox parsing flaw.",
+          "runOn": "VICTIM",
+          "references": [
+            "HTML Standard §sandbox attribute"
+          ],
+          "expect": {
+            "chromium": "BLOCKED",
+            "firefox": "BLOCKED",
+            "webkit": "BLOCKED"
+          },
+          "loadedOrigin": "https://victim.sop-lab.test:8443",
+          "ms": 27,
+          "verdict": "BLOCKED",
+          "detail": "blocked: SecurityError: Failed to read a named property 'document' from 'Window': Blocked a frame with origin \"https://victim.sop-lab.test:8443\" from accessing a cross-origin frame.",
+          "evidence": null,
+          "engine": "chromium",
+          "servedFrom": "https://victim.sop-lab.test:8443",
+          "harnessUrl": "https://victim.sop-lab.test:8443/probes/harness.html",
+          "consoleErrors": [],
+          "claimedVerdict": "BLOCKED",
+          "canaryVerified": false,
+          "expected": "BLOCKED",
+          "divergesFromExpectation": false
+        },
+        {
+          "id": "INHERIT-01-srcdoc-inherits-embedder-origin",
+          "lane": "origin-inheritance",
+          "title": "iframe srcdoc runs in the embedder origin",
+          "why": "A srcdoc frame has no URL of its own and inherits the embedder's origin. Benign alone; decisive when srcdoc content survives an HTML sanitiser, because injected markup then executes with full origin authority and reads anything same-origin.",
+          "runOn": "VICTIM",
+          "references": [
+            "HTML Standard §iframe srcdoc"
+          ],
+          "expect": {
+            "chromium": "BYPASS",
+            "firefox": "BYPASS",
+            "webkit": "BYPASS"
+          },
+          "loadedOrigin": "https://victim.sop-lab.test:8443",
+          "ms": 54,
+          "verdict": "BYPASS",
+          "detail": "frame origin=null",
+          "evidence": "<CANARY:verified-in-run>",
+          "engine": "chromium",
+          "servedFrom": "https://victim.sop-lab.test:8443",
+          "harnessUrl": "https://victim.sop-lab.test:8443/probes/harness.html",
+          "consoleErrors": [],
+          "claimedVerdict": "BYPASS",
+          "canaryVerified": true,
+          "expected": "BYPASS",
+          "divergesFromExpectation": false
+        },
+        {
+          "id": "INHERIT-02-blob-url-inherits-creator-origin",
+          "lane": "origin-inheritance",
+          "title": "blob: URL document inherits its creator origin",
+          "why": "blob:https://host/uuid executes in the origin that minted it, so a blob frame is same-origin with its creator and is not a boundary. Chrome 137 partitioned blob URL access by storage key; this probe records what the engine under test actually does.",
+          "runOn": "VICTIM",
+          "references": [
+            "File API §blob URL store",
+            "Chrome 137 blob URL partitioning"
+          ],
+          "expect": {
+            "chromium": "BYPASS",
+            "firefox": "BYPASS",
+            "webkit": "BYPASS"
+          },
+          "loadedOrigin": "https://victim.sop-lab.test:8443",
+          "ms": 59,
+          "verdict": "BYPASS",
+          "detail": "blobUrl=blob:https://victim.sop-lab.test:8443/54ec85bc-6e3c-4364-aee0-1a frame origin=https://victim.sop-lab.test:8443",
+          "evidence": "<CANARY:verified-in-run>",
+          "engine": "chromium",
+          "servedFrom": "https://victim.sop-lab.test:8443",
+          "harnessUrl": "https://victim.sop-lab.test:8443/probes/harness.html",
+          "consoleErrors": [],
+          "claimedVerdict": "BYPASS",
+          "canaryVerified": true,
+          "expected": "BYPASS",
+          "divergesFromExpectation": false
+        },
+        {
+          "id": "INHERIT-03-cross-origin-blob-fetch",
+          "lane": "origin-inheritance",
+          "title": "blob: URL minted on one origin, dereferenced from another",
+          "why": "The blob URL string is guessable-by-possession. If a different origin can fetch a blob URL carrying another origin's host, the blob store is not origin-keyed. Directly probes the Chrome 137 partitioning work.",
+          "runOn": "ATTACKER",
+          "references": [
+            "Chrome 137 blob URL partitioning",
+            "File API §blob URL store"
+          ],
+          "expect": {
+            "chromium": "BLOCKED",
+            "firefox": "BLOCKED",
+            "webkit": "BLOCKED"
+          },
+          "loadedOrigin": "https://attacker.sop-lab.test:8443",
+          "ms": 4027,
+          "verdict": "BLOCKED",
+          "detail": "blobUrl=blob:https://victim.sop-lab.test:8443/36594c4e-dfa6-455e-bf85-f9b5d476d3 | fetch=rejected: TypeError: Failed to fetch | frameRead=len=0 — holding a foreign origin's blob URL is not sufficient; the store is partitioned",
+          "evidence": null,
+          "engine": "chromium",
+          "servedFrom": "https://attacker.sop-lab.test:8443",
+          "harnessUrl": "https://attacker.sop-lab.test:8443/probes/harness.html",
+          "consoleErrors": [
+            "Fetch API cannot load blob:https://victim.sop-lab.test:8443/36594c4e-dfa6-455e-bf85-f9b5d476d38e. URL scheme \"blob\" is not supported.",
+            "Not allowed to load local resource: blob:https://victim.sop-lab.test:8443/36594c4e-dfa6-455e-bf85-f9b5d476d38e"
+          ],
+          "claimedVerdict": "BLOCKED",
+          "canaryVerified": false,
+          "expected": "BLOCKED",
+          "divergesFromExpectation": false
+        },
+        {
+          "id": "INHERIT-04-javascript-uri-frame-navigation",
+          "lane": "origin-inheritance",
+          "title": "javascript: URI navigation of a cross-origin frame",
+          "why": "A javascript: URI executes in the origin of the document being navigated. If an embedder can point one at a cross-origin frame the result is direct script injection into that origin — the canonical UXSS shape. Every current engine blocks it; the probe exists so a regression would be caught rather than assumed impossible.",
+          "runOn": "VICTIM",
+          "references": [
+            "HTML Standard §javascript: URLs",
+            "classic UXSS pattern"
+          ],
+          "expect": {
+            "chromium": "BLOCKED",
+            "firefox": "BLOCKED",
+            "webkit": "BLOCKED"
+          },
+          "loadedOrigin": "https://victim.sop-lab.test:8443",
+          "ms": 2558,
+          "verdict": "BLOCKED",
+          "detail": "javascript: URI did not execute in the cross-origin frame (SecurityError: Failed to set a named property 'href' on 'Location': The current window does not have permission to navig)",
+          "evidence": null,
+          "engine": "chromium",
+          "servedFrom": "https://victim.sop-lab.test:8443",
+          "harnessUrl": "https://victim.sop-lab.test:8443/probes/harness.html",
+          "consoleErrors": [
+            "Unsafe attempt to initiate navigation for frame with URL 'https://attacker.sop-lab.test:8443/lab/canary' from frame with URL 'https://victim.sop-lab.test:8443/probes/harness.html'. The frame attemptin"
+          ],
+          "claimedVerdict": "BLOCKED",
+          "canaryVerified": false,
+          "expected": "BLOCKED",
+          "divergesFromExpectation": false
+        },
+        {
+          "id": "RELAX-01-document-domain-default",
+          "lane": "origin-relaxation",
+          "title": "document.domain relaxation with default agent clustering",
+          "why": "Setting document.domain used to let two subdomains of one registrable domain become same-origin. Chrome disabled the effect by default in the 115 line: the setter still exists and may not throw, but the origin no longer relaxes. Whether the *effect* survives is the only thing worth measuring.",
+          "runOn": "SIBLING",
+          "references": [
+            "Chrome 115 document.domain deprecation",
+            "HTML Standard §document.domain"
+          ],
+          "expect": {
+            "chromium": "BLOCKED",
+            "firefox": "BYPASS",
+            "webkit": "BYPASS"
+          },
+          "loadedOrigin": "https://sub.victim.sop-lab.test:8443",
+          "ms": 268,
+          "verdict": "BLOCKED",
+          "detail": "domain sub.victim.sop-lab.test -> sub.victim.sop-lab.test (setter was a silent no-op) originAgentCluster=true setterOk crossRead=SecurityError: Failed to read a named property 'document' from 'Window': Blocked a frame with origin \"https://sub.victim.sop-lab.test:8443\" from accessing a cross-origin frame.",
+          "evidence": null,
+          "engine": "chromium",
+          "servedFrom": "https://sub.victim.sop-lab.test:8443",
+          "harnessUrl": "https://sub.victim.sop-lab.test:8443/probes/harness.html",
+          "consoleErrors": [
+            "Failed to load resource: the server responded with a status of 404 (Not Found)"
+          ],
+          "claimedVerdict": "BLOCKED",
+          "canaryVerified": false,
+          "expected": "BLOCKED",
+          "divergesFromExpectation": false
+        },
+        {
+          "id": "RELAX-02-document-domain-mutual-optout",
+          "lane": "origin-relaxation",
+          "title": "document.domain relaxation with Origin-Agent-Cluster: ?0 on both documents",
+          "why": "The decisive test of whether Chrome 115 removed origin relaxation or merely flipped its default. Both documents are served with Origin-Agent-Cluster: ?0 and both assign the same document.domain. If the cross-origin read then succeeds, relaxation is alive and any site still emitting that header keeps a cross-subdomain hole in its own SOP boundary — a materially different security story from \"the feature was removed\".",
+          "runOn": "SIBLING",
+          "references": [
+            "Origin-Agent-Cluster header",
+            "Chrome 115 document.domain deprecation",
+            "HTML Standard §relaxing the same-origin restriction"
+          ],
+          "expect": {
+            "chromium": "BYPASS",
+            "firefox": "BYPASS",
+            "webkit": "BYPASS"
+          },
+          "loadedOrigin": "https://sub.victim.sop-lab.test:8443",
+          "ms": 23,
+          "verdict": "BYPASS",
+          "detail": "self.domain=sop-lab.test selfRelaxed=true originAgentCluster=false (opt-out honoured) setterOk frameRelaxedTo=sop-lab.test crossRead=RESOLVED",
+          "evidence": "<CANARY:verified-in-run>",
+          "engine": "chromium",
+          "servedFrom": "https://sub.victim.sop-lab.test:8443",
+          "harnessUrl": "https://sub.victim.sop-lab.test:8443/probes/harness.html?oac=0",
+          "consoleErrors": [],
+          "claimedVerdict": "BYPASS",
+          "canaryVerified": true,
+          "expected": "BYPASS",
+          "divergesFromExpectation": false
+        },
+        {
+          "id": "RELAX-03-unilateral-relaxation-rejected",
+          "lane": "origin-relaxation",
+          "title": "Unilateral document.domain relaxation does not open the boundary",
+          "why": "The control that keeps RELAX-02 honest. Only this side relaxes; the target does not. This must stay BLOCKED — otherwise relaxation would be an attacker-unilateral SOP bypass against any subdomain, which is a categorically more severe bug than a cooperative legacy feature.",
+          "runOn": "SIBLING",
+          "references": [
+            "HTML Standard §relaxing the same-origin restriction"
+          ],
+          "expect": {
+            "chromium": "BLOCKED",
+            "firefox": "BLOCKED",
+            "webkit": "BLOCKED"
+          },
+          "loadedOrigin": "https://sub.victim.sop-lab.test:8443",
+          "ms": 320,
+          "verdict": "BLOCKED",
+          "detail": "self.domain=sop-lab.test (relaxed) target=NOT relaxed setterOk crossRead=blocked, mutual opt-in correctly required",
+          "evidence": null,
+          "engine": "chromium",
+          "servedFrom": "https://sub.victim.sop-lab.test:8443",
+          "harnessUrl": "https://sub.victim.sop-lab.test:8443/probes/harness.html?oac=0",
+          "consoleErrors": [],
+          "claimedVerdict": "BLOCKED",
+          "canaryVerified": false,
+          "expected": "BLOCKED",
+          "divergesFromExpectation": false
+        },
+        {
+          "id": "OPENER-01-cross-origin-window-property-surface",
+          "lane": "opener-navigation",
+          "title": "Readable property surface of a cross-origin Window",
+          "why": "A cross-origin Window is not fully opaque: the spec keeps a small CrossOriginProperties allowlist. Enumerating what actually reads back shows the true size of the leak surface, and any readable property outside that allowlist is an engine bug.",
+          "runOn": "ATTACKER",
+          "references": [
+            "HTML Standard §CrossOriginProperties"
+          ],
+          "expect": {
+            "chromium": "BLOCKED",
+            "firefox": "BLOCKED",
+            "webkit": "BLOCKED"
+          },
+          "loadedOrigin": "https://attacker.sop-lab.test:8443",
+          "ms": 19,
+          "verdict": "BLOCKED",
+          "detail": "readable=[length=0, closed=false] blocked=9 outsideAllowlist=[]",
+          "evidence": null,
+          "readable": [
+            "length=0",
+            "closed=false"
+          ],
+          "blockedProps": [
+            "origin",
+            "name",
+            "document.cookie",
+            "document.body.innerText",
+            "document.title",
+            "localStorage",
+            "navigator.userAgent",
+            "history.length",
+            "location.href"
+          ],
+          "outsideAllowlist": [],
+          "engine": "chromium",
+          "servedFrom": "https://attacker.sop-lab.test:8443",
+          "harnessUrl": "https://attacker.sop-lab.test:8443/probes/harness.html",
+          "consoleErrors": [],
+          "claimedVerdict": "BLOCKED",
+          "canaryVerified": false,
+          "expected": "BLOCKED",
+          "divergesFromExpectation": false
+        },
+        {
+          "id": "OPENER-02-frame-count-state-leak",
+          "lane": "opener-navigation",
+          "title": "window.length as a cross-origin state oracle",
+          "why": "frames.length is deliberately cross-origin readable. Because subframe count usually differs between logged-in and logged-out renderings, it is a reliable login-state oracle that needs no bug at all. Not a canary read, so it is reported as a side channel rather than a BYPASS.",
+          "runOn": "ATTACKER",
+          "references": [
+            "HTML Standard §CrossOriginProperties",
+            "XS-Leaks wiki: frame counting"
+          ],
+          "expect": {
+            "chromium": "INCONCLUSIVE",
+            "firefox": "INCONCLUSIVE",
+            "webkit": "INCONCLUSIVE"
+          },
+          "loadedOrigin": "https://attacker.sop-lab.test:8443",
+          "ms": 28,
+          "verdict": "INCONCLUSIVE",
+          "detail": "cross-origin frames.length readable = 0 (state oracle, no canary crosses)",
+          "evidence": null,
+          "engine": "chromium",
+          "servedFrom": "https://attacker.sop-lab.test:8443",
+          "harnessUrl": "https://attacker.sop-lab.test:8443/probes/harness.html",
+          "consoleErrors": [],
+          "claimedVerdict": "INCONCLUSIVE",
+          "canaryVerified": false,
+          "expected": "INCONCLUSIVE",
+          "divergesFromExpectation": false
+        },
+        {
+          "id": "OPENER-03-named-window-overwrite",
+          "lane": "opener-navigation",
+          "title": "Cross-origin window.name write-through",
+          "why": "window.name survives cross-origin navigation, which historically made it a cross-origin data channel. Whether a foreign origin can still write it decides if that channel is open.",
+          "runOn": "ATTACKER",
+          "references": [
+            "window.name transport (classic)"
+          ],
+          "expect": {
+            "chromium": "BLOCKED",
+            "firefox": "BLOCKED",
+            "webkit": "BLOCKED"
+          },
+          "loadedOrigin": "https://attacker.sop-lab.test:8443",
+          "ms": 17,
+          "verdict": "BLOCKED",
+          "detail": "write threw: SecurityError: Failed to set a named property 'name' on 'Window': Blocked a frame with ori; readback blocked — name is a channel, not a canary read",
+          "evidence": null,
+          "engine": "chromium",
+          "servedFrom": "https://attacker.sop-lab.test:8443",
+          "harnessUrl": "https://attacker.sop-lab.test:8443/probes/harness.html",
+          "consoleErrors": [],
+          "claimedVerdict": "BLOCKED",
+          "canaryVerified": false,
+          "expected": "BLOCKED",
+          "divergesFromExpectation": false
+        },
+        {
+          "id": "MSG-01-postmessage-wildcard-target",
+          "lane": "messaging",
+          "title": "postMessage with targetOrigin \"*\" delivers to any origin",
+          "why": "Not an engine bug — an application one, and the most common SOP failure in real code. Sending with \"*\" means any origin that gets a handle to the window receives the payload. Reported as a BYPASS because the canary genuinely crosses the boundary.",
+          "runOn": "ATTACKER",
+          "references": [
+            "HTML Standard §postMessage",
+            "OWASP: postMessage misuse"
+          ],
+          "expect": {
+            "chromium": "BYPASS",
+            "firefox": "BYPASS",
+            "webkit": "BYPASS"
+          },
+          "loadedOrigin": "https://attacker.sop-lab.test:8443",
+          "ms": 21,
+          "verdict": "BYPASS",
+          "detail": "received from origin=https://victim.sop-lab.test:8443 at listener on https://attacker.sop-lab.test:8443 — wildcard targetOrigin delivered victim-origin secret to a foreign listener with no origin check",
+          "evidence": "<CANARY:verified-in-run>",
+          "engine": "chromium",
+          "servedFrom": "https://attacker.sop-lab.test:8443",
+          "harnessUrl": "https://attacker.sop-lab.test:8443/probes/harness.html",
+          "consoleErrors": [],
+          "claimedVerdict": "BYPASS",
+          "canaryVerified": true,
+          "expected": "BYPASS",
+          "divergesFromExpectation": false
+        },
+        {
+          "id": "MSG-02-message-origin-attribution",
+          "lane": "messaging",
+          "title": "MessageEvent.origin is correctly attributed",
+          "why": "Every postMessage security decision rests on event.origin being truthful. If a cross-origin sender could forge it, all receiver-side origin checks collapse at once.",
+          "runOn": "ATTACKER",
+          "references": [
+            "HTML Standard §MessageEvent"
+          ],
+          "expect": {
+            "chromium": "BLOCKED",
+            "firefox": "BLOCKED",
+            "webkit": "BLOCKED"
+          },
+          "loadedOrigin": "https://attacker.sop-lab.test:8443",
+          "ms": 621,
+          "verdict": "BLOCKED",
+          "detail": "messages=0 misattributed=0 origins=[]",
+          "evidence": null,
+          "engine": "chromium",
+          "servedFrom": "https://attacker.sop-lab.test:8443",
+          "harnessUrl": "https://attacker.sop-lab.test:8443/probes/harness.html",
+          "consoleErrors": [],
+          "claimedVerdict": "BLOCKED",
+          "canaryVerified": false,
+          "expected": "BLOCKED",
+          "divergesFromExpectation": false
+        },
+        {
+          "id": "SIDE-01-status-code-onerror-oracle",
+          "lane": "side-channel",
+          "title": "Cross-origin HTTP status oracle via load/error events",
+          "why": "load versus error on a cross-origin subresource distinguishes 200 from 404 without reading a single byte. Enough to enumerate object IDs or probe authorisation state, and no engine can close it without breaking the web.",
+          "runOn": "ATTACKER",
+          "references": [
+            "XS-Leaks wiki: error events"
+          ],
+          "expect": {
+            "chromium": "INCONCLUSIVE",
+            "firefox": "INCONCLUSIVE",
+            "webkit": "INCONCLUSIVE"
+          },
+          "loadedOrigin": "https://attacker.sop-lab.test:8443",
+          "ms": 9,
+          "verdict": "INCONCLUSIVE",
+          "detail": "200=>load 404=>error — status distinguishable cross-origin (oracle open)",
+          "evidence": null,
+          "engine": "chromium",
+          "servedFrom": "https://attacker.sop-lab.test:8443",
+          "harnessUrl": "https://attacker.sop-lab.test:8443/probes/harness.html",
+          "consoleErrors": [
+            "pageerror: x is not defined",
+            "Failed to load resource: the server responded with a status of 404 (Not Found)"
+          ],
+          "claimedVerdict": "INCONCLUSIVE",
+          "canaryVerified": false,
+          "expected": "INCONCLUSIVE",
+          "divergesFromExpectation": false
+        },
+        {
+          "id": "SIDE-02-resource-timing-visibility",
+          "lane": "side-channel",
+          "title": "Cross-origin entries in the Resource Timing buffer",
+          "why": "Cross-origin resource timings must be coarsened without Timing-Allow-Origin, but entry *existence* and duration still leak cache state and redirect chains. Measures how much survives.",
+          "runOn": "ATTACKER",
+          "references": [
+            "Resource Timing L2 §privacy",
+            "XS-Leaks wiki: timing"
+          ],
+          "expect": {
+            "chromium": "INCONCLUSIVE",
+            "firefox": "INCONCLUSIVE",
+            "webkit": "INCONCLUSIVE"
+          },
+          "loadedOrigin": "https://attacker.sop-lab.test:8443",
+          "ms": 559,
+          "verdict": "INCONCLUSIVE",
+          "detail": "entry present; duration=256ms responseStart=0 redirectCount=undefined timingsCoarsened=true — existence and duration leak regardless",
+          "evidence": null,
+          "engine": "chromium",
+          "servedFrom": "https://attacker.sop-lab.test:8443",
+          "harnessUrl": "https://attacker.sop-lab.test:8443/probes/harness.html",
+          "consoleErrors": [],
+          "claimedVerdict": "INCONCLUSIVE",
+          "canaryVerified": false,
+          "expected": "INCONCLUSIVE",
+          "divergesFromExpectation": false
+        },
+        {
+          "id": "SIDE-03-cross-origin-redirect-chain-leak",
+          "lane": "side-channel",
+          "title": "Redirect destination inference across origins",
+          "why": "A cross-origin redirect's final URL is not readable, but whether it happened, and how many hops, often is. Redirect targets frequently encode authorisation state, which turns hop counting into an oracle.",
+          "runOn": "ATTACKER",
+          "references": [
+            "XS-Leaks wiki: redirects",
+            "Fetch Standard §redirect handling"
+          ],
+          "expect": {
+            "chromium": "INCONCLUSIVE",
+            "firefox": "INCONCLUSIVE",
+            "webkit": "INCONCLUSIVE"
+          },
+          "loadedOrigin": "https://attacker.sop-lab.test:8443",
+          "ms": 209,
+          "verdict": "INCONCLUSIVE",
+          "detail": "opaqueFinalUrl=\"\" redirectedFlag=false timingRedirectCount=undefined — destination hidden, occurrence observable",
+          "evidence": null,
+          "engine": "chromium",
+          "servedFrom": "https://attacker.sop-lab.test:8443",
+          "harnessUrl": "https://attacker.sop-lab.test:8443/probes/harness.html",
+          "consoleErrors": [],
+          "claimedVerdict": "INCONCLUSIVE",
+          "canaryVerified": false,
+          "expected": "INCONCLUSIVE",
+          "divergesFromExpectation": false
+        },
+        {
+          "id": "CANVAS-01-crossorigin-draw-taints",
+          "lane": "canvas-sop",
+          "title": "Drawing a non-CORS cross-origin image taints the canvas",
+          "why": "The baseline the whole canvas lane rests on. /lab/canary.png encodes the canary one byte per pixel, so if this read ever succeeds the exact secret comes back and there is no ambiguity about what leaked. A conforming engine must throw SecurityError on getImageData here.",
+          "runOn": "ATTACKER",
+          "references": [
+            "HTML Standard §origin-clean flag",
+            "CVE-2023-4045",
+            "CVE-2024-5693"
+          ],
+          "expect": {
+            "chromium": "BLOCKED",
+            "firefox": "BLOCKED",
+            "webkit": "BLOCKED"
+          },
+          "loadedOrigin": "https://attacker.sop-lab.test:8443",
+          "ms": 8,
+          "verdict": "BLOCKED",
+          "detail": "imageWidth=46 getImageData=threw (tainted, correct) toDataURL=threw SecurityError (tainted, correct)",
+          "evidence": null,
+          "engine": "chromium",
+          "servedFrom": "https://attacker.sop-lab.test:8443",
+          "harnessUrl": "https://attacker.sop-lab.test:8443/probes/harness.html",
+          "consoleErrors": [],
+          "claimedVerdict": "BLOCKED",
+          "canaryVerified": false,
+          "expected": "BLOCKED",
+          "divergesFromExpectation": false
+        },
+        {
+          "id": "CANVAS-02-offscreen-transfer-taint-propagation",
+          "lane": "canvas-sop",
+          "title": "OffscreenCanvas taint propagates back to the placeholder element (CVE-2025-9180)",
+          "why": "The CVE-2025-9180 mechanism, reconstructed from the fix commit rather than from a writeup, because no public POC exists and Mozilla shipped the fix with no in-tree test. OffscreenCanvasDisplayHelper had no write-only member at all, so tainting a canvas inside a Worker after transferControlToOffscreen() left the main-thread toDataURL()/toBlob() readback ungated. What leaks is raw cross-origin pixel data — a full read primitive, not a timing oracle. Affected: Firefox before 142, ESR before 115.27 / 128.14 / 140.2.",
+          "runOn": "ATTACKER",
+          "references": [
+            "CVE-2025-9180",
+            "MFSA 2025-64",
+            "Bugzilla 1979782",
+            "fix commit 44541e940dd8ab537118a39f77b1f4e9d23ce59e"
+          ],
+          "expect": {
+            "chromium": "BLOCKED",
+            "firefox": "BLOCKED",
+            "webkit": "UNSUPPORTED"
+          },
+          "loadedOrigin": "https://attacker.sop-lab.test:8443",
+          "ms": 176,
+          "verdict": "BLOCKED",
+          "detail": "gates=[transfer-bitmap:refused(DataCloneError) | copy-bitmap:refused(DataCloneError) | worker-fetch:accepted] worker={\"drew\":false,\"route\":\"worker-fetch\",\"err\":null,\"workerFetchErr\":\"InvalidStateError\"} mainThread toDataURL=RESOLVED len=154 recoveredPixels=\"\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\" — placeholder readback was gated",
+          "evidence": null,
+          "engine": "chromium",
+          "servedFrom": "https://attacker.sop-lab.test:8443",
+          "harnessUrl": "https://attacker.sop-lab.test:8443/probes/harness.html",
+          "consoleErrors": [],
+          "claimedVerdict": "BLOCKED",
+          "canaryVerified": false,
+          "expected": "BLOCKED",
+          "divergesFromExpectation": false
+        },
+        {
+          "id": "CANVAS-03-cors-image-read-authorised",
+          "lane": "canvas-sop",
+          "title": "CORS-approved cross-origin image is legitimately readable",
+          "why": "The positive control for the lane. With crossOrigin=\"anonymous\" and a permissive ACAO the canvas stays origin-clean and the pixels read back, which proves the readback path in CANVAS-01/02 works at all. Without this, a BLOCKED result there could just mean the pixel decoding is broken.",
+          "runOn": "ATTACKER",
+          "references": [
+            "HTML Standard §origin-clean flag",
+            "Fetch Standard §CORS"
+          ],
+          "expect": {
+            "chromium": "BYPASS",
+            "firefox": "BYPASS",
+            "webkit": "BYPASS"
+          },
+          "loadedOrigin": "https://attacker.sop-lab.test:8443",
+          "ms": 7,
+          "verdict": "BYPASS",
+          "detail": "width=46 getImageData=resolved — CORS grant makes the read authorised; recorded as BYPASS because the canary does cross the origin boundary",
+          "evidence": "<CANARY:verified-in-run>",
+          "engine": "chromium",
+          "servedFrom": "https://attacker.sop-lab.test:8443",
+          "harnessUrl": "https://attacker.sop-lab.test:8443/probes/harness.html",
+          "consoleErrors": [],
+          "claimedVerdict": "BYPASS",
+          "canaryVerified": true,
+          "expected": "BYPASS",
+          "divergesFromExpectation": false
+        },
+        {
+          "id": "STORE-01-localstorage-partition",
+          "lane": "storage-isolation",
+          "title": "localStorage is keyed to the exact origin tuple",
+          "why": "Storage must be keyed on the full origin, not the host. If the https:8443 and https:9443 views of one hostname share a store, then port is not part of the storage key and SOP is weaker than specified.",
+          "runOn": "VICTIM",
+          "references": [
+            "HTML Standard §storage partitioning",
+            "RFC 6454"
+          ],
+          "expect": {
+            "chromium": "BLOCKED",
+            "firefox": "BLOCKED",
+            "webkit": "BLOCKED"
+          },
+          "loadedOrigin": "https://victim.sop-lab.test:8443",
+          "ms": 23,
+          "verdict": "BLOCKED",
+          "detail": "altport read=blocked: SecurityError: Failed to read a named property 'eval' from 'Window': Blocked a frame with origin \"https://victim.sop-lab — port is  part of the storage key",
+          "evidence": null,
+          "engine": "chromium",
+          "servedFrom": "https://victim.sop-lab.test:8443",
+          "harnessUrl": "https://victim.sop-lab.test:8443/probes/harness.html",
+          "consoleErrors": [],
+          "claimedVerdict": "BLOCKED",
+          "canaryVerified": false,
+          "expected": "BLOCKED",
+          "divergesFromExpectation": false
+        },
+        {
+          "id": "STORE-02-scheme-isolation",
+          "lane": "storage-isolation",
+          "title": "http and https views of one host are distinct origins",
+          "why": "Scheme is part of the origin tuple. If the insecure view can reach into the secure view's DOM, a network attacker who can inject over http inherits the https origin.",
+          "runOn": "VICTIM",
+          "references": [
+            "RFC 6454 §4"
+          ],
+          "expect": {
+            "chromium": "BLOCKED",
+            "firefox": "BLOCKED",
+            "webkit": "BLOCKED"
+          },
+          "loadedOrigin": "https://victim.sop-lab.test:8443",
+          "ms": 4004,
+          "verdict": "BLOCKED",
+          "detail": "read resolved across scheme boundary",
+          "evidence": null,
+          "engine": "chromium",
+          "servedFrom": "https://victim.sop-lab.test:8443",
+          "harnessUrl": "https://victim.sop-lab.test:8443/probes/harness.html",
+          "consoleErrors": [
+            "Mixed Content: The page at 'https://victim.sop-lab.test:8443/probes/harness.html' was loaded over HTTPS, but requested an insecure frame 'http://victim.sop-lab.test:8080/lab/canary'. This request has "
+          ],
+          "claimedVerdict": "BLOCKED",
+          "canaryVerified": false,
+          "expected": "BLOCKED",
+          "divergesFromExpectation": false
+        }
+      ],
+      "serverHits": {
+        "runId": "1c46e2d81f0d",
+        "count": 1,
+        "leaks": 0,
+        "hits": [
+          {
+            "seq": 1,
+            "at": "2026-09-30T01:05:19.341Z",
+            "kind": "collect:GET",
+            "host": "attacker.sop-lab.test:8443",
+            "referer": null,
+            "origin": null,
+            "secFetchSite": "same-site",
+            "secFetchMode": "no-cors",
+            "cookiePresent": false,
+            "data": {
+              "via": "link-header"
+            },
+            "leakedCanary": false
+          }
+        ]
+      }
+    }
+  ]
+}

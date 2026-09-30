@@ -1,0 +1,19 @@
+{
+  "name": "sop-bypass-mini-test-suite",
+  "version": "3.0.0",
+  "private": true,
+  "description": "Measured Same-Origin Policy bypass test suite with a real cross-origin testbed and Playwright execution",
+  "scripts": {
+    "certs": "bash lab/make-certs.sh",
+    "lab": "node lab/origin-server.js",
+    "test": "node automation/runner.js --engine chromium",
+    "test:all": "node automation/runner.js --all",
+    "report": "node automation/runner.js --engine chromium --report",
+    "versions": "node automation/browser-versions.js",
+    "research": "node research/query.js"
+  },
+  "devDependencies": {
+    "playwright-core": "^1.56.0"
+  },
+  "license": "MIT"
+}

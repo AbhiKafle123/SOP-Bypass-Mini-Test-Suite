@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SOP Lab harness</title>
+<style>
+  :root { color-scheme: light dark; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+  body { margin: 0; padding: 16px; background: #0f1115; color: #d7dae0; }
+  h1 { font-size: 15px; margin: 0 0 4px; letter-spacing: .02em; }
+  .meta { font-size: 12px; color: #8b93a1; margin-bottom: 14px; line-height: 1.6; }
+  .meta b { color: #d7dae0; font-weight: 600; }
+  #sop-stage { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+  #sop-stage iframe { background: #1a1d24; }
+  #sop-canary { font-size: 11px; color: #4c5563; word-break: break-all; }
+  .role { display: inline-block; padding: 1px 7px; border-radius: 3px;
+          background: #1f2937; color: #93c5fd; font-size: 11px; }
+  .untrusted { background: #3b1d1d; color: #fca5a5; }
+</style>
+</head>
+<body>
+<h1>SOP Lab probe harness</h1>
+<div class="meta">
+  loaded origin <b id="m-origin">?</b> <span class="role" id="m-role">?</span><br>
+  run <b id="m-run">?</b> &middot; canary in page: <b id="m-canary">?</b>
+</div>
+
+<!--
+  Probes that read "the parent's secret" target this element. It is only
+  populated when the harness is served from an origin the manifest trusts, so on
+  an attacker origin there is genuinely nothing here to steal — which is what
+  makes a successful read meaningful.
+-->
+<div id="sop-canary"></div>
+
+<!-- Frames created by probes are appended here rather than to <body>, so a
+     probe that forgets to clean up cannot orphan nodes over the parent UI. -->
+<div id="sop-stage"></div>
+
+<script src="/probes/registry.js"></script>
+<script>
+(function () {
+  var L = window.__SOP_LAB__ || {};
+  document.getElementById('m-origin').textContent = location.origin;
+  document.getElementById('m-run').textContent = L.runId || '(none)';
+
+  var roleEl = document.getElementById('m-role');
+  roleEl.textContent = L.role || 'UNKNOWN';
+  if (!L.trustedReader) roleEl.className = 'role untrusted';
+
+  document.getElementById('m-canary').textContent = L.canary ? 'yes' : 'no (untrusted origin)';
+  if (L.canary) document.getElementById('sop-canary').textContent = L.canary;
+
+  // Signal the runner that registry + DOM are both ready, so it never has to
+  // guess at a fixed delay.
+  window.__SOP_HARNESS_READY__ = Boolean(window.SOPProbes);
+})();
+</script>
+</body>
+</html>

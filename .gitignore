@@ -1,0 +1,7 @@
+node_modules/
+# Locally generated CA and leaf key — regenerate with lab/make-certs.sh.
+# A committed private key is a committed private key even in a test lab.
+lab/certs/
+# Run artefacts are machine- and build-specific; latest.json and report.html are
+# force-added when a run is worth keeping as the record.
+results/run-*.json
