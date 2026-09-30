@@ -729,6 +729,47 @@
       },
     },
 
+    {
+      id: 'RELAX-04-insecure-origin-relaxation',
+      lane: 'origin-relaxation',
+      title: 'document.domain relaxation on an insecure origin, with no opt-out header',
+      why: 'Origin-Agent-Cluster is only honoured in a secure context. If that is what '
+         + 'carries the Chrome 115 default-flip, then plain http origins never received '
+         + 'it and keep document.domain relaxation unconditionally — no header, no '
+         + 'cooperation from the server, nothing to opt into. That would make the '
+         + '"document.domain was disabled in 115" summary true only of https, which is a '
+         + 'materially different claim. Run as the pair to RELAX-01: identical logic, '
+         + 'insecure scheme.',
+      runOn: 'INSECURE_SIBLING',
+      references: ['Origin-Agent-Cluster header (secure-context gated)',
+        'Chrome 115 document.domain deprecation', 'HTML Standard §document.domain'],
+      expect: { chromium: 'BYPASS', firefox: 'BYPASS', webkit: 'BYPASS' },
+      run: async function () {
+        var oac = ('originAgentCluster' in global) ? global.originAgentCluster : 'n/a';
+        var before = document.domain, setterErr = null;
+        try { document.domain = 'sop-lab.test'; } catch (e) { setterErr = String(e); }
+        var after = document.domain;
+        var f = await addFrame({
+          src: O().INSECURE + '/lab/canary?relax=sop-lab.test',
+        });
+        await waitFor(function () {
+          return probeRead(f, 'contentWindow.document').ok;
+        }, 2500);
+        var r = probeRead(f, 'contentWindow.document.body.innerText');
+        removeFrame(f);
+        var c = r.ok ? extractCanary(r.value) : null;
+        return res(c ? V.BYPASS : V.BLOCKED,
+          'secureContext=' + global.isSecureContext
+          + ' originAgentCluster=' + oac
+          + ' domain ' + before + ' -> ' + after
+          + (before === after ? ' (no-op)' : ' (CHANGED)')
+          + (setterErr ? ' setterThrew=' + setterErr.slice(0, 80) : ' setterOk')
+          + ' crossRead=' + (r.ok ? 'RESOLVED' : r.error)
+          + ' — no Origin-Agent-Cluster header was sent to either document',
+          c);
+      },
+    },
+
     // =====================================================================
     // LANE: opener-navigation
     // =====================================================================

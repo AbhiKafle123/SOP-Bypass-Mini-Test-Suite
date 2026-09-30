@@ -4,8 +4,8 @@ Measured results, the evidence behind them, and an explicit account of what is
 *not* established. Every version number here was verified against a primary source;
 every `BYPASS` was verified by the runner against a per-run secret.
 
-Run of record: `results/latest.json` — 29 probes, Chromium 141.0.7390.37,
-**8 verified bypasses / 17 blocked / 4 inconclusive / 0 unresolved divergences**.
+Run of record: `results/latest.json` — 30 probes, Chromium 141.0.7390.37,
+**9 verified bypasses / 17 blocked / 4 inconclusive / 0 unresolved divergences**.
 
 ---
 
@@ -137,10 +137,10 @@ surface is a fresh opportunity to forget to propagate it.
 
 ---
 
-## 3. The eight verified bypasses
+## 3. The nine verified bypasses
 
-Each was verified by the runner: the probe's `evidence` contained the exact
-per-run canary, a value regenerated on every server boot and never given to
+Each of the nine was verified by the runner: the probe's `evidence` contained the
+exact per-run canary, a value regenerated on every server boot and never given to
 attacker-origin pages. Shape-matched in-page, exact-matched out-of-page.
 
 **Classification matters more than the count.** A `BYPASS` here is not automatically
@@ -158,27 +158,47 @@ frameRelaxedTo=sop-lab.test
 crossRead=RESOLVED          <-- canary crossed
 ```
 
-Read as a trio with its controls:
+Read as a four-probe matrix — no single probe supports the conclusion:
 
-| Probe | Configuration | Result |
-|---|---|---|
-| `RELAX-01` | default agent clustering | **BLOCKED** — setter is a *silent no-op*; `sub.victim.sop-lab.test` → `sub.victim.sop-lab.test`, no throw |
-| `RELAX-02` | `Origin-Agent-Cluster: ?0` on **both** documents, both relax | **BYPASS** — cross-origin DOM read succeeds |
-| `RELAX-03` | opt-out present, only the *attacker* side relaxes | **BLOCKED** — mutual opt-in correctly required |
+| Probe | Scheme | `originAgentCluster` | Header sent | Setter | Cross-read |
+|---|---|---|---|---|---|
+| `RELAX-01` | https | `true` | none | **silent no-op** | BLOCKED |
+| `RELAX-02` | https | `false` | `?0` on both | changes value | **RESOLVED** |
+| `RELAX-03` | https | `false` | `?0`, only one side relaxes | changes value | BLOCKED |
+| `RELAX-04` | **http** | **`false`** | **none** | **changes value** | **RESOLVED** |
 
-Conclusion: **the Chrome 115 change is a default-flip, not a removal.** Origin
-relaxation is fully alive in Chromium 141 for any site that emits
-`Origin-Agent-Cluster: ?0`, and such a site retains a cross-subdomain hole in its
-own SOP boundary. `RELAX-03` bounds the severity: relaxation is **not**
-attacker-unilateral, so this is a cooperative legacy feature rather than a bypass
-against arbitrary subdomains. Without `RELAX-03`, `RELAX-02` would read far more
-alarming than it is.
+Two conclusions, and the second is the sharper one.
 
-Two implementation details that cost real debugging time and are worth recording:
-`Origin-Agent-Cluster` is negotiated **per document**, so the header must be on the
-top-level page as well as the frame (hence the `harnessQuery` mechanism); and it
-only engages in **secure contexts**, which is why the lab serves HTTPS under a
-locally generated CA rather than plain HTTP.
+**First: the Chrome 115 change is a default-flip, not a removal.** Origin relaxation
+is fully alive in Chromium 141 for any site that emits `Origin-Agent-Cluster: ?0`.
+`RELAX-03` bounds the severity — relaxation is **not** attacker-unilateral, so this
+is a cooperative legacy feature and not a bypass against arbitrary subdomains.
+Without `RELAX-03`, `RELAX-02` would read far more alarming than it is.
+
+**Second: the default-flip only ever applied to secure contexts.** `Origin-Agent-
+Cluster` is honoured only in a secure context, so on plain `http://` the header is
+irrelevant — `RELAX-04` sends **no header at all**, reads
+`originAgentCluster=false`, changes `document.domain` from
+`sub.victim.sop-lab.test` to `sop-lab.test`, and completes the cross-subdomain read.
+No opt-in, no server cooperation, nothing to configure.
+
+So the widely repeated summary "Chrome disabled `document.domain` in 115" is true of
+**https only**. Any `http://` origin retains cross-subdomain origin relaxation
+unconditionally in Chromium 141. For an internal tool, a legacy intranet app or
+anything else still served over plain HTTP, the mitigation people believe they got
+in Chrome 115 is simply not present.
+
+One implementation detail that cost real debugging time: `Origin-Agent-Cluster` is
+negotiated **per document**, so the header must be on the top-level page as well as
+the framed one — hence the `harnessQuery` mechanism. A probe that sets it only on
+the frame reports a false `BLOCKED`.
+
+A second-order observation worth recording, because it bit the hosted dashboard:
+**relaxation is irreversible and it nulls the port component of the origin.** A
+document that relaxes stops being same-origin with its own later-created `blob:`
+frames, since those inherit the unrelaxed tuple. The hosted probe set had to move
+its `document.domain` test into a throwaway frame for exactly this reason — which is
+the same footgun the feature is notorious for, observed from the inside.
 
 ### 3b. By-design holes in the origin model — exploitable, and not engine bugs
 

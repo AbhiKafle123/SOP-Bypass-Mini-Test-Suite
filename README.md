@@ -17,10 +17,10 @@ Playwright runner, and an integrity rule that makes the verdicts checkable:
 - **Out-of-page verification.** A probe runs inside the page and is not trusted to
   grade itself. The runner holds the authoritative canary and downgrades any
   `BYPASS` whose evidence does not contain it.
-- **Negative controls throughout.** 17 of 29 probes exist to confirm the boundary
+- **Negative controls throughout.** 17 of 30 probes exist to confirm the boundary
   *holds*. A suite that can only report bypasses is not measuring anything.
 
-Current run of record: **29 probes, Chromium 141.0.7390.37, 8 verified bypasses,
+Current run of record: **30 probes, Chromium 141.0.7390.37, 9 verified bypasses,
 17 blocked, 4 inconclusive, 0 unresolved divergences.** See **[FINDINGS.md](FINDINGS.md)**.
 
 ## Quick start
@@ -84,6 +84,7 @@ tests/, legacy/       V2.0 and V1.0 HTML demonstration pages (unchanged)
 | SIBLING | `https://sub.victim.sop-lab.test:8443` | host label only |
 | ALTPORT | `https://victim.sop-lab.test:9443` | port only |
 | INSECURE | `http://victim.sop-lab.test:8080` | scheme only |
+| INSECURE_SIBLING | `http://sub.victim.sop-lab.test:8080` | scheme **and** host label |
 
 HTTPS is not decoration: several primitives are secure-context gated, and
 `Origin-Agent-Cluster` only engages in a secure context. `http://localhost` would
@@ -98,7 +99,7 @@ be a secure context but cannot provide sibling subdomains.
 | `script-execution` | 2 | cross-origin script execution (XSSI), error muting |
 | `sandbox-confinement` | 2 | `allow-scripts allow-same-origin` escape, and its cross-origin control |
 | `origin-inheritance` | 4 | `srcdoc`, `blob:`, `javascript:` origin inheritance; blob partitioning |
-| `origin-relaxation` | 3 | `document.domain` by default, under opt-out, and unilaterally |
+| `origin-relaxation` | 4 | `document.domain` by default, under opt-out, unilaterally, and over plain http |
 | `opener-navigation` | 3 | cross-origin `Window` property surface, frame counting, `window.name` |
 | `messaging` | 2 | `postMessage` wildcard targeting, origin attribution |
 | `side-channel` | 3 | status oracle, resource timing, redirect observability |

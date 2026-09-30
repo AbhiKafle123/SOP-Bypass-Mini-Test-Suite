@@ -1,0 +1,667 @@
+<title>Origin Boundary Probe</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+/* Layout: instrument panel — live readout, then live probes, then the lab record. */
+:root{
+  --ink:#141a22; --ink-soft:#4a5765; --ink-faint:#7c8899;
+  --paper:#f5f6f4; --panel:#ffffff; --rule:#dfe3e0;
+  --steel:#1d5c74;           /* accent: instrument steel-blue */
+  --steel-wash:#e6eff2;
+  --bypass:#9b1c1c; --bypass-bg:#fbeaea;
+  --held:#14603a;   --held-bg:#e7f3ec;
+  --partial:#8a5200; --partial-bg:#fdf1e0;
+  --absent:#5b6470; --absent-bg:#eceeed;
+  --sans:'IBM Plex Sans',ui-sans-serif,system-ui,sans-serif;
+  --mono:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --ink:#e4e8ea; --ink-soft:#9aa6b2; --ink-faint:#6b7684;
+  --paper:#10151a; --panel:#171d24; --rule:#26303a;
+  --steel:#6fc2dd; --steel-wash:#16303b;
+  --bypass:#f6a9a9; --bypass-bg:#3a1618;
+  --held:#8fd9ae;   --held-bg:#11291d;
+  --partial:#f0c479; --partial-bg:#332310;
+  --absent:#8b95a1; --absent-bg:#1e252c;
+  color-scheme:dark;
+}}
+:root[data-theme="dark"]{
+  --ink:#e4e8ea; --ink-soft:#9aa6b2; --ink-faint:#6b7684;
+  --paper:#10151a; --panel:#171d24; --rule:#26303a;
+  --steel:#6fc2dd; --steel-wash:#16303b;
+  --bypass:#f6a9a9; --bypass-bg:#3a1618;
+  --held:#8fd9ae;   --held-bg:#11291d;
+  --partial:#f0c479; --partial-bg:#332310;
+  --absent:#8b95a1; --absent-bg:#1e252c;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--paper);color:var(--ink);font-family:var(--sans);
+     font-size:15px;line-height:1.55;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto;padding-inline:20px;padding-block:34px 60px}
+h1{font-size:clamp(25px,4.4vw,36px);line-height:1.1;margin:0 0 10px;
+   font-weight:700;letter-spacing:-.022em;text-wrap:balance}
+h2{font-size:12px;text-transform:uppercase;letter-spacing:.1em;font-weight:600;
+   color:var(--ink-faint);margin:0 0 14px;padding-bottom:7px;
+   border-bottom:1px solid var(--rule)}
+h3{font-size:16px;margin:0 0 6px;font-weight:600;letter-spacing:-.01em}
+p{margin:0 0 12px;max-width:68ch}
+.lede{font-size:16.5px;color:var(--ink-soft);max-width:70ch;margin-bottom:6px}
+code,.m{font-family:var(--mono);font-size:.875em;font-variant-ligatures:none}
+code{background:var(--steel-wash);color:var(--steel);padding:1px 5px;border-radius:3px}
+section{margin-top:42px}
+a{color:var(--steel)}
+
+/* live readout */
+.readout{background:var(--panel);border:1px solid var(--rule);border-radius:9px;
+         padding:18px 20px;margin-top:22px}
+.rgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(168px,1fr));gap:15px 26px}
+.rcell{min-width:0}
+.rk{font-size:10.5px;text-transform:uppercase;letter-spacing:.085em;
+    color:var(--ink-faint);font-weight:600;margin-bottom:3px}
+.rv{font-family:var(--mono);font-size:13.5px;font-weight:500;word-break:break-word}
+.rv.big{font-size:19px;font-weight:600;letter-spacing:-.01em}
+
+/* verdict pills */
+.pill{display:inline-block;font-family:var(--mono);font-size:10.5px;font-weight:600;
+      letter-spacing:.055em;padding:2px 7px;border-radius:3px;text-transform:uppercase;
+      white-space:nowrap}
+.p-BYPASS{background:var(--bypass-bg);color:var(--bypass)}
+.p-BLOCKED{background:var(--held-bg);color:var(--held)}
+.p-INCONCLUSIVE{background:var(--partial-bg);color:var(--partial)}
+.p-UNSUPPORTED,.p-ERROR,.p-PENDING{background:var(--absent-bg);color:var(--absent)}
+
+/* probe rows */
+.probe{background:var(--panel);border:1px solid var(--rule);border-radius:8px;
+       padding:15px 17px;margin-bottom:10px}
+.probe.crossed{border-left:3px solid var(--bypass)}
+.probe.held{border-left:3px solid var(--held)}
+.probe.part{border-left:3px solid var(--partial)}
+.probe.none{border-left:3px solid var(--absent)}
+.ptop{display:flex;align-items:baseline;gap:11px;flex-wrap:wrap;margin-bottom:5px}
+.pid{font-family:var(--mono);font-size:11.5px;color:var(--ink-faint);font-weight:500}
+.pwhy{color:var(--ink-soft);font-size:13.5px;margin:6px 0 0;max-width:72ch}
+.pdetail{font-family:var(--mono);font-size:11.5px;color:var(--ink-soft);
+         background:var(--paper);border:1px solid var(--rule);border-radius:5px;
+         padding:8px 10px;margin-top:9px;overflow-x:auto;white-space:pre-wrap;
+         word-break:break-word;line-height:1.5}
+
+/* tables */
+.scroll{overflow-x:auto;border:1px solid var(--rule);border-radius:8px;background:var(--panel)}
+table{border-collapse:collapse;width:100%;font-size:13px;min-width:600px}
+th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--rule);vertical-align:top}
+th{font-size:10px;text-transform:uppercase;letter-spacing:.075em;color:var(--ink-faint);
+   font-weight:600;white-space:nowrap}
+tbody tr:last-child td{border-bottom:none}
+td.n{font-family:var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+td.wide{min-width:280px;font-size:12.5px;color:var(--ink-soft)}
+
+/* controls */
+.bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:16px}
+button{font-family:var(--sans);font-size:13px;font-weight:500;color:var(--ink);
+       background:var(--panel);border:1px solid var(--rule);border-radius:6px;
+       padding:7px 14px;cursor:pointer}
+button:hover{border-color:var(--steel);color:var(--steel)}
+button.go{background:var(--steel);color:var(--panel);border-color:var(--steel);font-weight:600}
+button.go:hover{opacity:.9;color:var(--panel)}
+button[aria-pressed="true"]{background:var(--steel-wash);border-color:var(--steel);color:var(--steel)}
+:focus-visible{outline:2px solid var(--steel);outline-offset:2px}
+
+.note{border-left:2px solid var(--rule);padding:2px 0 2px 14px;color:var(--ink-soft);
+      font-size:13.5px;margin:14px 0;max-width:70ch}
+.tag{display:inline-block;font-family:var(--mono);font-size:10px;padding:1px 6px;
+     border:1px solid var(--rule);border-radius:3px;color:var(--ink-faint)}
+#stage{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.foot{margin-top:52px;padding-top:18px;border-top:1px solid var(--rule);
+      color:var(--ink-faint);font-size:12.5px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+
+<div class="wrap">
+
+<h1>Origin Boundary Probe</h1>
+<p class="lede">Runs Same-Origin Policy probes in <em>your</em> browser, right now, and
+reports what actually held. Below that: the full 29-probe run from a six-origin lab,
+and the verified CVE boundaries for the builds involved.</p>
+
+<div class="readout" id="readout">
+  <div class="rgrid">
+    <div class="rcell"><div class="rk">Your engine</div><div class="rv big" id="d-engine">detecting…</div></div>
+    <div class="rcell"><div class="rk">Version</div><div class="rv big" id="d-version">—</div></div>
+    <div class="rcell"><div class="rk">Your origin</div><div class="rv" id="d-origin">—</div></div>
+    <div class="rcell"><div class="rk">Secure context</div><div class="rv" id="d-secure">—</div></div>
+    <div class="rcell"><div class="rk">originAgentCluster</div><div class="rv" id="d-oac">—</div></div>
+    <div class="rcell"><div class="rk">Known CVE exposure</div><div class="rv" id="d-cve">—</div></div>
+  </div>
+</div>
+
+<section>
+  <h2>Live probes — running in your browser</h2>
+  <p>A hosted page has one origin, so the header-policy and storage lanes cannot run
+  here; those need the local lab. What <em>does</em> work in a single origin is the
+  part most people get wrong anyway: origin <em>inheritance</em>. A
+  <code>srcdoc</code> frame, a <code>blob:</code> document and a sandboxed frame all
+  acquire an origin by inheritance rather than from a URL, and a
+  <code>sandbox="allow-scripts"</code> frame gets a genuine opaque origin — a real
+  boundary to test against.</p>
+  <div class="bar">
+    <button class="go" id="run">Run probes</button>
+    <button id="toggle-why" aria-pressed="true">Explanations</button>
+    <span class="tag" id="run-state">idle</span>
+  </div>
+  <div id="live"></div>
+</section>
+
+<section>
+  <h2>Verdict taxonomy</h2>
+  <div class="scroll"><table>
+    <thead><tr><th>Verdict</th><th>Means</th></tr></thead>
+    <tbody>
+      <tr><td><span class="pill p-BYPASS">bypass</span></td><td class="wide">Data or DOM access crossed a boundary the policy is supposed to close. In the lab run this requires the per-run secret as evidence.</td></tr>
+      <tr><td><span class="pill p-BLOCKED">blocked</span></td><td class="wide">The boundary held. Expected on a patched engine — a suite without these is not measuring anything.</td></tr>
+      <tr><td><span class="pill p-INCONCLUSIVE">inconclusive</span></td><td class="wide">Ran, but the outcome does not separate bypass from block. Side channels live here: state is inferable, no bytes cross.</td></tr>
+      <tr><td><span class="pill p-UNSUPPORTED">unsupported</span></td><td class="wide">The primitive does not exist in this engine.</td></tr>
+    </tbody>
+  </table></div>
+  <p class="note"><strong>A bypass is not automatically an engine bug.</strong> Several
+  below are by-design holes in the origin model — cross-origin
+  <code>&lt;script&gt;</code> execution, <code>postMessage</code> with
+  <code>targetOrigin:&nbsp;'*'</code>, a wildcard CORS header. They are genuinely
+  exploitable and genuinely not defects in any browser. The defect is in whoever
+  deployed them.</p>
+</section>
+
+<section>
+  <h2>Lab record — six origins, measured</h2>
+  <div class="readout" style="margin-top:0">
+    <div class="rgrid">
+      <div class="rcell"><div class="rk">Engine executed</div><div class="rv" id="l-engine">—</div></div>
+      <div class="rcell"><div class="rk">Probes</div><div class="rv big" id="l-total">—</div></div>
+      <div class="rcell"><div class="rk">Bypass / blocked</div><div class="rv big" id="l-split">—</div></div>
+      <div class="rcell"><div class="rk">Not executed</div><div class="rv" id="l-missing">—</div></div>
+    </div>
+  </div>
+  <div class="bar" style="margin-top:16px">
+    <button data-f="all" aria-pressed="true">All</button>
+    <button data-f="BYPASS">Bypass</button>
+    <button data-f="BLOCKED">Blocked</button>
+    <button data-f="INCONCLUSIVE">Inconclusive</button>
+  </div>
+  <div id="labrun"></div>
+</section>
+
+<section>
+  <h2>Verified CVE boundaries</h2>
+  <p>Every record below was checked against the official CVE List V5 — the CNA's own
+  published data. Sort by whether your build is behind the fix line.</p>
+  <div class="scroll"><table>
+    <thead><tr><th>CVE</th><th>Engine</th><th>Fixed in</th><th>Sev</th><th>Bug</th><th>Reachable</th><th>What it is</th></tr></thead>
+    <tbody id="cvebody"></tbody>
+  </table></div>
+</section>
+
+<section>
+  <h2>Milestones that are not CVEs</h2>
+  <div id="milestones"></div>
+</section>
+
+<div class="foot">
+  <p style="margin:0">Probe definitions, the lab server and the verification tooling are in the
+  <strong>SOP Bypass Mini Test Suite</strong> repository. Live probes here run only against
+  this page's own origin and frames it creates itself — nothing is sent anywhere.
+  For authorized security research only.</p>
+</div>
+</div>
+
+<div id="stage" aria-hidden="true"></div>
+
+<script>window.__SOP_DATA__ = {"generatedAt":"2026-09-30T01:13:42.366Z","lab":{"engine":"Chromium 141.0.7390.37","ua":"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/141.0.0.0 Safari/537.36","runId":"25a3202e2ea5","origins":{"VICTIM":"https://victim.sop-lab.test:8443","DOCUMENTED":"https://documented.sop-lab.test:8443","ATTACKER":"https://attacker.sop-lab.test:8443","SIBLING":"https://sub.victim.sop-lab.test:8443","PARENT":"https://sop-lab.test:8443","ALTPORT":"https://victim.sop-lab.test:9443","INSECURE":"http://victim.sop-lab.test:8080","INSECURE_SIBLING":"http://sub.victim.sop-lab.test:8080"},"counts":{"BLOCKED":17,"BYPASS":9,"INCONCLUSIVE":4},"enginesUnavailable":[{"engine":"firefox","reason":"no binary found on this machine"},{"engine":"webkit","reason":"no binary found on this machine"}],"probes":[{"id":"ORACLE-01-documented-vs-loaded","lane":"origin-oracle","title":"Documented origin vs actually-loaded origin reconciliation","why":"Establishes the boundary every other probe is measured against: what origin does the content declare, what origin is it really running in, and which origins the manifest authorises to read canary material.","runOn":"ATTACKER","verdict":"BLOCKED","expected":"BLOCKED","detail":"documented=https://documented.sop-lab.test:8443 loaded=https://attacker.sop-lab.test:8443 authorisedReader=false — canary not readable, CORS held","refs":["RFC 6454 §3 (origin as security principal)"],"verified":false},{"id":"ORACLE-02-cors-wildcard-read","lane":"origin-oracle","title":"Cross-origin JSON read permitted by wildcard ACAO","why":"Control case proving the oracle detects a real boundary crossing. The server is told to answer with Access-Control-Allow-Origin: *, which is the single most common real-world SOP giveaway.","runOn":"ATTACKER","verdict":"BYPASS","expected":"BYPASS","detail":"wildcard ACAO let an unauthorised origin read canary material","refs":["Fetch Standard §3.2 CORS protocol"],"verified":true},{"id":"HDR-01-no-cors-json-read","lane":"header-policy","title":"Cross-origin JSON read with no CORS headers (baseline enforcement)","why":"The negative control for the whole suite. If this returns BYPASS the engine is catastrophically broken or the harness is misconfigured; every other result should be distrusted until it is explained.","runOn":"ATTACKER","verdict":"BLOCKED","expected":"BLOCKED","detail":"fetch rejected as expected: Failed to fetch","refs":["Fetch Standard §3.2"],"verified":false},{"id":"HDR-02-opaque-response-read","lane":"header-policy","title":"no-cors opaque response body is unreadable","why":"mode:no-cors returns an opaque filtered response. The request is sent and cookies may ride along, but the body must not be readable — the distinction between \"request happened\" and \"response readable\".","runOn":"ATTACKER","verdict":"BLOCKED","expected":"BLOCKED","detail":"type=opaque status=0 bodyLen=0 — request was dispatched; body opaque as required","refs":["Fetch Standard §2.2.4 filtered responses"],"verified":false},{"id":"HDR-03-link-header-referrer-leak","lane":"header-policy","title":"Link header referrerpolicy=unsafe-url referrer leak (CVE-2025-4664)","why":"Chrome uniquely resolved the Link header on subresource responses, so a response could downgrade the referrer policy of the request that fetched it and leak the full referrer URL, query string included. Fixed in the 136 line; on a patched build this must be BLOCKED.","runOn":"VICTIM","verdict":"BLOCKED","expected":"BLOCKED","detail":"sink hits=1 canary-bearing=0 — referrer was stripped or Link was not honoured on the subresource","refs":["CVE-2025-4664","CISA KEV"],"verified":false},{"id":"SCRIPT-01-cross-origin-script-tag","lane":"script-execution","title":"Cross-origin <script src> executes in the embedding origin (XSSI)","why":"SOP never restricted script *execution* by origin, only reading the source text. A cross-origin script runs with the embedder's authority, so any secret the response body assigns to a global has crossed the boundary. This is the XSSI / JSONP class and it is not a bug in any engine — it is the model working as specified, which is exactly why it remains exploitable.","runOn":"ATTACKER","verdict":"BYPASS","expected":"BYPASS","detail":"victim-origin script body executed in the attacker origin and handed over canary material","refs":["RFC 6454","OWASP XSSI"],"verified":true},{"id":"SCRIPT-02-script-error-message-leak","lane":"script-execution","title":"window.onerror message sanitisation for cross-origin scripts","why":"Cross-origin script errors must be reported as the opaque \"Script error.\" with no line or column, otherwise error text becomes a read channel into a cross-origin response body.","runOn":"ATTACKER","verdict":"BLOCKED","expected":"BLOCKED","detail":"muted=true msg=\"Script error.\"","refs":["HTML Standard: muted errors"],"verified":false},{"id":"SANDBOX-01-allow-scripts-allow-same-origin-escape","lane":"sandbox-confinement","title":"sandbox=\"allow-scripts allow-same-origin\" escapes its own sandbox","why":"Granting both tokens to same-origin content is self-defeating: the frame keeps the embedder's origin, so it can reach parent.document, read anything there, and delete its own sandbox attribute. Any site serving attacker-controlled content (uploads, previews, templates) from its own origin under these two tokens has handed that content full origin authority. The HTML spec warns about this explicitly; no engine treats it as a bug, which is why it keeps shipping.","runOn":"VICTIM","verdict":"BYPASS","expected":"BYPASS","detail":"reachedParent=true sandboxCleared=true","refs":["HTML Standard §sandbox attribute warning"],"verified":true},{"id":"SANDBOX-02-cross-origin-sandbox-holds","lane":"sandbox-confinement","title":"Sandboxed cross-origin frame stays confined","why":"Same two tokens, but the frame is genuinely cross-origin. The escape must fail here, which is what proves SANDBOX-01 is about origin inheritance rather than a sandbox parsing flaw.","runOn":"VICTIM","verdict":"BLOCKED","expected":"BLOCKED","detail":"blocked: SecurityError: Failed to read a named property 'document' from 'Window': Blocked a frame with origin \"https://victim.sop-lab.test:8443\" from accessing a cross-origin frame.","refs":["HTML Standard §sandbox attribute"],"verified":false},{"id":"INHERIT-01-srcdoc-inherits-embedder-origin","lane":"origin-inheritance","title":"iframe srcdoc runs in the embedder origin","why":"A srcdoc frame has no URL of its own and inherits the embedder's origin. Benign alone; decisive when srcdoc content survives an HTML sanitiser, because injected markup then executes with full origin authority and reads anything same-origin.","runOn":"VICTIM","verdict":"BYPASS","expected":"BYPASS","detail":"frame origin=null","refs":["HTML Standard §iframe srcdoc"],"verified":true},{"id":"INHERIT-02-blob-url-inherits-creator-origin","lane":"origin-inheritance","title":"blob: URL document inherits its creator origin","why":"blob:https://host/uuid executes in the origin that minted it, so a blob frame is same-origin with its creator and is not a boundary. Chrome 137 partitioned blob URL access by storage key; this probe records what the engine under test actually does.","runOn":"VICTIM","verdict":"BYPASS","expected":"BYPASS","detail":"blobUrl=blob:https://victim.sop-lab.test:8443/e88a5e30-f496-4108-bc26-f4 frame origin=https://victim.sop-lab.test:8443","refs":["File API §blob URL store","Chrome 137 blob URL partitioning"],"verified":true},{"id":"INHERIT-03-cross-origin-blob-fetch","lane":"origin-inheritance","title":"blob: URL minted on one origin, dereferenced from another","why":"The blob URL string is guessable-by-possession. If a different origin can fetch a blob URL carrying another origin's host, the blob store is not origin-keyed. Directly probes the Chrome 137 partitioning work.","runOn":"ATTACKER","verdict":"BLOCKED","expected":"BLOCKED","detail":"blobUrl=blob:https://victim.sop-lab.test:8443/7a68cfde-9b8a-4c3c-8f59-feabbb0eba | fetch=rejected: TypeError: Failed to fetch | frameRead=len=0 — holding a foreign origin's blob URL is not sufficient; the store is partitioned","refs":["Chrome 137 blob URL partitioning","File API §blob URL store"],"verified":false},{"id":"INHERIT-04-javascript-uri-frame-navigation","lane":"origin-inheritance","title":"javascript: URI navigation of a cross-origin frame","why":"A javascript: URI executes in the origin of the document being navigated. If an embedder can point one at a cross-origin frame the result is direct script injection into that origin — the canonical UXSS shape. Every current engine blocks it; the probe exists so a regression would be caught rather than assumed impossible.","runOn":"VICTIM","verdict":"BLOCKED","expected":"BLOCKED","detail":"javascript: URI did not execute in the cross-origin frame (SecurityError: Failed to set a named property 'href' on 'Location': The current window does not have permission to navig)","refs":["HTML Standard §javascript: URLs","classic UXSS pattern"],"verified":false},{"id":"RELAX-01-document-domain-default","lane":"origin-relaxation","title":"document.domain relaxation with default agent clustering","why":"Setting document.domain used to let two subdomains of one registrable domain become same-origin. Chrome disabled the effect by default in the 115 line: the setter still exists and may not throw, but the origin no longer relaxes. Whether the *effect* survives is the only thing worth measuring.","runOn":"SIBLING","verdict":"BLOCKED","expected":"BLOCKED","detail":"domain sub.victim.sop-lab.test -> sub.victim.sop-lab.test (setter was a silent no-op) originAgentCluster=true setterOk crossRead=SecurityError: Failed to read a named property 'document' from 'Window': Blocked a frame with origin \"https://sub.victim.sop-lab.test:8443\" from accessing a cross-origin frame.","refs":["Chrome 115 document.domain deprecation","HTML Standard §document.domain"],"verified":false},{"id":"RELAX-02-document-domain-mutual-optout","lane":"origin-relaxation","title":"document.domain relaxation with Origin-Agent-Cluster: ?0 on both documents","why":"The decisive test of whether Chrome 115 removed origin relaxation or merely flipped its default. Both documents are served with Origin-Agent-Cluster: ?0 and both assign the same document.domain. If the cross-origin read then succeeds, relaxation is alive and any site still emitting that header keeps a cross-subdomain hole in its own SOP boundary — a materially different security story from \"the feature was removed\".","runOn":"SIBLING","verdict":"BYPASS","expected":"BYPASS","detail":"self.domain=sop-lab.test selfRelaxed=true originAgentCluster=false (opt-out honoured) setterOk frameRelaxedTo=sop-lab.test crossRead=RESOLVED","refs":["Origin-Agent-Cluster header","Chrome 115 document.domain deprecation","HTML Standard §relaxing the same-origin restriction"],"verified":true},{"id":"RELAX-03-unilateral-relaxation-rejected","lane":"origin-relaxation","title":"Unilateral document.domain relaxation does not open the boundary","why":"The control that keeps RELAX-02 honest. Only this side relaxes; the target does not. This must stay BLOCKED — otherwise relaxation would be an attacker-unilateral SOP bypass against any subdomain, which is a categorically more severe bug than a cooperative legacy feature.","runOn":"SIBLING","verdict":"BLOCKED","expected":"BLOCKED","detail":"self.domain=sop-lab.test (relaxed) target=NOT relaxed setterOk crossRead=blocked, mutual opt-in correctly required","refs":["HTML Standard §relaxing the same-origin restriction"],"verified":false},{"id":"RELAX-04-insecure-origin-relaxation","lane":"origin-relaxation","title":"document.domain relaxation on an insecure origin, with no opt-out header","why":"Origin-Agent-Cluster is only honoured in a secure context. If that is what carries the Chrome 115 default-flip, then plain http origins never received it and keep document.domain relaxation unconditionally — no header, no cooperation from the server, nothing to opt into. That would make the \"document.domain was disabled in 115\" summary true only of https, which is a materially different claim. Run as the pair to RELAX-01: identical logic, insecure scheme.","runOn":"INSECURE_SIBLING","verdict":"BYPASS","expected":"BYPASS","detail":"secureContext=false originAgentCluster=false domain sub.victim.sop-lab.test -> sop-lab.test (CHANGED) setterOk crossRead=RESOLVED — no Origin-Agent-Cluster header was sent to either document","refs":["Origin-Agent-Cluster header (secure-context gated)","Chrome 115 document.domain deprecation","HTML Standard §document.domain"],"verified":true},{"id":"OPENER-01-cross-origin-window-property-surface","lane":"opener-navigation","title":"Readable property surface of a cross-origin Window","why":"A cross-origin Window is not fully opaque: the spec keeps a small CrossOriginProperties allowlist. Enumerating what actually reads back shows the true size of the leak surface, and any readable property outside that allowlist is an engine bug.","runOn":"ATTACKER","verdict":"BLOCKED","expected":"BLOCKED","detail":"readable=[length=0, closed=false] blocked=9 outsideAllowlist=[]","refs":["HTML Standard §CrossOriginProperties"],"verified":false},{"id":"OPENER-02-frame-count-state-leak","lane":"opener-navigation","title":"window.length as a cross-origin state oracle","why":"frames.length is deliberately cross-origin readable. Because subframe count usually differs between logged-in and logged-out renderings, it is a reliable login-state oracle that needs no bug at all. Not a canary read, so it is reported as a side channel rather than a BYPASS.","runOn":"ATTACKER","verdict":"INCONCLUSIVE","expected":"INCONCLUSIVE","detail":"cross-origin frames.length readable = 0 (state oracle, no canary crosses)","refs":["HTML Standard §CrossOriginProperties","XS-Leaks wiki: frame counting"],"verified":false},{"id":"OPENER-03-named-window-overwrite","lane":"opener-navigation","title":"Cross-origin window.name write-through","why":"window.name survives cross-origin navigation, which historically made it a cross-origin data channel. Whether a foreign origin can still write it decides if that channel is open.","runOn":"ATTACKER","verdict":"BLOCKED","expected":"BLOCKED","detail":"write threw: SecurityError: Failed to set a named property 'name' on 'Window': Blocked a frame with ori; readback blocked — name is a channel, not a canary read","refs":["window.name transport (classic)"],"verified":false},{"id":"MSG-01-postmessage-wildcard-target","lane":"messaging","title":"postMessage with targetOrigin \"*\" delivers to any origin","why":"Not an engine bug — an application one, and the most common SOP failure in real code. Sending with \"*\" means any origin that gets a handle to the window receives the payload. Reported as a BYPASS because the canary genuinely crosses the boundary.","runOn":"ATTACKER","verdict":"BYPASS","expected":"BYPASS","detail":"received from origin=https://victim.sop-lab.test:8443 at listener on https://attacker.sop-lab.test:8443 — wildcard targetOrigin delivered victim-origin secret to a foreign listener with no origin check","refs":["HTML Standard §postMessage","OWASP: postMessage misuse"],"verified":true},{"id":"MSG-02-message-origin-attribution","lane":"messaging","title":"MessageEvent.origin is correctly attributed","why":"Every postMessage security decision rests on event.origin being truthful. If a cross-origin sender could forge it, all receiver-side origin checks collapse at once.","runOn":"ATTACKER","verdict":"BLOCKED","expected":"BLOCKED","detail":"messages=0 misattributed=0 origins=[]","refs":["HTML Standard §MessageEvent"],"verified":false},{"id":"SIDE-01-status-code-onerror-oracle","lane":"side-channel","title":"Cross-origin HTTP status oracle via load/error events","why":"load versus error on a cross-origin subresource distinguishes 200 from 404 without reading a single byte. Enough to enumerate object IDs or probe authorisation state, and no engine can close it without breaking the web.","runOn":"ATTACKER","verdict":"INCONCLUSIVE","expected":"INCONCLUSIVE","detail":"200=>load 404=>error — status distinguishable cross-origin (oracle open)","refs":["XS-Leaks wiki: error events"],"verified":false},{"id":"SIDE-02-resource-timing-visibility","lane":"side-channel","title":"Cross-origin entries in the Resource Timing buffer","why":"Cross-origin resource timings must be coarsened without Timing-Allow-Origin, but entry *existence* and duration still leak cache state and redirect chains. Measures how much survives.","runOn":"ATTACKER","verdict":"INCONCLUSIVE","expected":"INCONCLUSIVE","detail":"entry present; duration=254ms responseStart=0 redirectCount=undefined timingsCoarsened=true — existence and duration leak regardless","refs":["Resource Timing L2 §privacy","XS-Leaks wiki: timing"],"verified":false},{"id":"SIDE-03-cross-origin-redirect-chain-leak","lane":"side-channel","title":"Redirect destination inference across origins","why":"A cross-origin redirect's final URL is not readable, but whether it happened, and how many hops, often is. Redirect targets frequently encode authorisation state, which turns hop counting into an oracle.","runOn":"ATTACKER","verdict":"INCONCLUSIVE","expected":"INCONCLUSIVE","detail":"opaqueFinalUrl=\"\" redirectedFlag=false timingRedirectCount=undefined — destination hidden, occurrence observable","refs":["XS-Leaks wiki: redirects","Fetch Standard §redirect handling"],"verified":false},{"id":"CANVAS-01-crossorigin-draw-taints","lane":"canvas-sop","title":"Drawing a non-CORS cross-origin image taints the canvas","why":"The baseline the whole canvas lane rests on. /lab/canary.png encodes the canary one byte per pixel, so if this read ever succeeds the exact secret comes back and there is no ambiguity about what leaked. A conforming engine must throw SecurityError on getImageData here.","runOn":"ATTACKER","verdict":"BLOCKED","expected":"BLOCKED","detail":"imageWidth=46 getImageData=threw (tainted, correct) toDataURL=threw SecurityError (tainted, correct)","refs":["HTML Standard §origin-clean flag","CVE-2023-4045","CVE-2024-5693"],"verified":false},{"id":"CANVAS-02-offscreen-transfer-taint-propagation","lane":"canvas-sop","title":"OffscreenCanvas taint propagates back to the placeholder element (CVE-2025-9180)","why":"The CVE-2025-9180 mechanism, reconstructed from the fix commit rather than from a writeup, because no public POC exists and Mozilla shipped the fix with no in-tree test. OffscreenCanvasDisplayHelper had no write-only member at all, so tainting a canvas inside a Worker after transferControlToOffscreen() left the main-thread toDataURL()/toBlob() readback ungated. What leaks is raw cross-origin pixel data — a full read primitive, not a timing oracle. Affected: Firefox before 142, ESR before 115.27 / 128.14 / 140.2.","runOn":"ATTACKER","verdict":"BLOCKED","expected":"BLOCKED","detail":"gates=[transfer-bitmap:refused(DataCloneError) | copy-bitmap:refused(DataCloneError) | worker-fetch:accepted] worker={\"drew\":false,\"route\":\"worker-fetch\",\"err\":null,\"workerFetchErr\":\"InvalidStateError\"} mainThread toDataURL=RESOLVED len=154 recoveredPixels=\"\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\" — placeholder readback was gated","refs":["CVE-2025-9180","MFSA 2025-64","Bugzilla 1979782","fix commit 44541e940dd8ab537118a39f77b1f4e9d23ce59e"],"verified":false},{"id":"CANVAS-03-cors-image-read-authorised","lane":"canvas-sop","title":"CORS-approved cross-origin image is legitimately readable","why":"The positive control for the lane. With crossOrigin=\"anonymous\" and a permissive ACAO the canvas stays origin-clean and the pixels read back, which proves the readback path in CANVAS-01/02 works at all. Without this, a BLOCKED result there could just mean the pixel decoding is broken.","runOn":"ATTACKER","verdict":"BYPASS","expected":"BYPASS","detail":"width=46 getImageData=resolved — CORS grant makes the read authorised; recorded as BYPASS because the canary does cross the origin boundary","refs":["HTML Standard §origin-clean flag","Fetch Standard §CORS"],"verified":true},{"id":"STORE-01-localstorage-partition","lane":"storage-isolation","title":"localStorage is keyed to the exact origin tuple","why":"Storage must be keyed on the full origin, not the host. If the https:8443 and https:9443 views of one hostname share a store, then port is not part of the storage key and SOP is weaker than specified.","runOn":"VICTIM","verdict":"BLOCKED","expected":"BLOCKED","detail":"altport read=blocked: SecurityError: Failed to read a named property 'eval' from 'Window': Blocked a frame with origin \"https://victim.sop-lab — port is  part of the storage key","refs":["HTML Standard §storage partitioning","RFC 6454"],"verified":false},{"id":"STORE-02-scheme-isolation","lane":"storage-isolation","title":"http and https views of one host are distinct origins","why":"Scheme is part of the origin tuple. If the insecure view can reach into the secure view's DOM, a network attacker who can inject over http inherits the https origin.","runOn":"VICTIM","verdict":"BLOCKED","expected":"BLOCKED","detail":"read resolved across scheme boundary","refs":["RFC 6454 §4"],"verified":false}]},"cves":[{"cve":"CVE-2025-4664","engine":"chromium","lane":"header-policy","priorTo":"136.0.7103.113","sev":"High","bug":"415810136","mfsa":null,"stillVuln":null,"probe":"HDR-03-link-header-referrer-leak","clientSide":false,"desc":"Insufficient policy enforcement in Loader in Google Chrome prior to 136.0.7103.113 allowed a remote attacker to leak cross-origin data via a crafted HTML page. (Chromium security severity: High)","note":"Link header on a cross-origin SUBRESOURCE response downgrades the embedding document's referrer policy to unsafe-url, leaking the full referrer including query string. Needs server header control on the subresource origin — an HTML <link rel=preload referrerpolicy> tag is NOT this bug and will appear to pass on patched builds."},{"cve":"CVE-2025-6556","engine":"chromium","lane":"header-policy","priorTo":"138.0.7204.49","sev":"Low","bug":"40062462","mfsa":null,"stillVuln":null,"probe":null,"clientSide":false,"desc":"Insufficient policy enforcement in Loader in Google Chrome prior to 138.0.7204.49 allowed a remote attacker to bypass content security policy via a crafted HTML page. (Chromium security severity: Low)","note":"CSP bypass in the same Loader component. Only the second record in the entire CVE List using the exact phrase \"Insufficient policy enforcement in Loader\"."},{"cve":"CVE-2026-17779","engine":"chromium","lane":"site-isolation","priorTo":"151.0.7922.72","sev":"Medium","bug":"513478933","mfsa":null,"stillVuln":null,"probe":null,"clientSide":true,"desc":"Inappropriate implementation in Site Isolation in Google Chrome prior to 151.0.7922.72 allowed a remote attacker to bypass site isolation via a crafted HTML page. (Chromium security severity: Medium)","note":"Best site-isolation research target in this corpus: the only Site Isolation record here that does NOT require a pre-compromised renderer, so it is reachable from a crafted page alone."},{"cve":"CVE-2026-17664","engine":"chromium","lane":"site-isolation","priorTo":"151.0.7922.72","sev":"High","bug":"500554346","mfsa":null,"stillVuln":null,"probe":null,"clientSide":false,"desc":"Insufficient validation of untrusted input in Loader in Google Chrome prior to 151.0.7922.72 allowed a remote attacker who had compromised the renderer process to leak cross-origin data via a crafted HTML page. (Chromium security severity: High)","note":"Requires an already-compromised renderer, so it is out of reach of a pure JS probe."},{"cve":"CVE-2026-93379","engine":"chromium","lane":"header-policy","priorTo":"153.0.8010.52","sev":"High","bug":"560039872","mfsa":null,"stillVuln":null,"probe":null,"clientSide":true,"desc":"Incorrect authorization in ORB in Google Chrome prior to 153.0.8010.52 allowed a remote attacker to bypass site isolation via a crafted HTML page. (Chromium security severity: High)","note":"Opaque Response Blocking (ORB) authorisation error — ORB is the successor to CORB and is precisely the machinery that stops a cross-origin fetch body reaching a renderer."},{"cve":"CVE-2026-15130","engine":"chromium","lane":"opener-navigation","priorTo":"150.0.7871.115","sev":"High","bug":"526541544","mfsa":null,"stillVuln":null,"probe":null,"clientSide":true,"desc":"Insufficient policy enforcement in Navigation in Google Chrome prior to 150.0.7871.115 allowed a remote attacker to bypass site isolation via a crafted HTML page. (Chromium security severity: High)","note":"Site isolation bypass via the Navigation component. Note this is the browser navigation stack, NOT the JS Navigation API."},{"cve":"CVE-2026-79051","engine":"chromium","lane":"header-policy","priorTo":"152.0.7977.65","sev":"Medium","bug":"513841856","mfsa":null,"stillVuln":null,"probe":null,"clientSide":true,"desc":"Incorrect authorization in Loader in Google Chrome prior to 152.0.7977.65 allowed a remote attacker to bypass web origin policy via a crafted HTML page. (Chromium security severity: Medium)","note":"Phrased as \"bypass web origin policy\" — Chrome's 2026 taxonomy for what earlier records called insufficient policy enforcement."},{"cve":"CVE-2026-87508","engine":"chromium","lane":"header-policy","priorTo":"153.0.8010.36","sev":"Medium","bug":"513346220","mfsa":null,"stillVuln":null,"probe":null,"clientSide":true,"desc":"Incorrect authorization in Loader in Google Chrome prior to 153.0.8010.36 allowed a remote attacker to bypass web origin policy via a crafted HTML page. (Chromium security severity: Medium)","note":"Second \"bypass web origin policy\" record in the Loader component."},{"cve":"CVE-2026-11174","engine":"chromium","lane":"site-isolation","priorTo":"149.0.7827.53","sev":"Medium","bug":"502348223","mfsa":null,"stillVuln":null,"probe":null,"clientSide":false,"desc":"Inappropriate implementation in Site Isolation in Google Chrome prior to 149.0.7827.53 allowed a remote attacker who had compromised the renderer process to bypass site isolation via a crafted HTML page. (Chromium security severity: Medium)","note":"Requires a compromised renderer."},{"cve":"CVE-2026-9903","engine":"chromium","lane":"site-isolation","priorTo":"148.0.7778.216","sev":"High","bug":"498783665","mfsa":null,"stillVuln":null,"probe":null,"clientSide":false,"desc":"Insufficient validation of untrusted input in Site Isolation in Google Chrome prior to 148.0.7778.216 allowed a remote attacker who had compromised the renderer process to bypass site isolation via a crafted MHTML page. (Chromium security severity: High)","note":"Crafted MHTML; requires a compromised renderer."},{"cve":"CVE-2024-1671","engine":"chromium","lane":"site-isolation","priorTo":"122.0.6261.57","sev":"Medium","bug":"41487933","mfsa":null,"stillVuln":null,"probe":null,"clientSide":true,"desc":"Inappropriate implementation in Site Isolation in Google Chrome prior to 122.0.6261.57 allowed a remote attacker to bypass content security policy via a crafted HTML page. (Chromium security severity: Medium)","note":"CSP bypass via Site Isolation."},{"cve":"CVE-2024-3840","engine":"chromium","lane":"site-isolation","priorTo":"124.0.6367.60","sev":"Medium","bug":"41493458","mfsa":null,"stillVuln":null,"probe":null,"clientSide":true,"desc":"Insufficient policy enforcement in Site Isolation in Google Chrome prior to 124.0.6367.60 allowed a remote attacker to bypass navigation restrictions via a crafted HTML page. (Chromium security severity: Medium)","note":"Insufficient policy enforcement in Site Isolation — navigation restrictions."},{"cve":"CVE-2022-4908","engine":"chromium","lane":"sandbox-confinement","priorTo":"107.0.5304.62","sev":"Medium","bug":null,"mfsa":null,"stillVuln":null,"probe":"SANDBOX-02-cross-origin-sandbox-holds","clientSide":true,"desc":"Inappropriate implementation in iFrame Sandbox in Google Chrome prior to 107.0.5304.62 allowed a remote attacker to leak cross-origin data via a crafted HTML page. (Chromium security severity: Medium)","note":"iFrame Sandbox component, cross-origin data leak. The V2 README described this as a \"Navigation API entries()\" issue, which the record does not support — it is an iframe sandbox bug."},{"cve":"CVE-2025-14373","engine":"chromium","lane":"url-spoofing","priorTo":"143.0.7499.110","sev":"Medium","bug":"461532432","mfsa":null,"stillVuln":null,"probe":null,"clientSide":true,"desc":"Inappropriate implementation in Toolbar in Google Chrome on Android prior to 143.0.7499.110 allowed a remote attacker to perform domain spoofing via a crafted HTML page. (Chromium security severity: Medium)","note":"Toolbar domain spoofing, Chrome on Android only. Not reproducible in headless automation: needs a real Android device with visible browser chrome."},{"cve":"CVE-2025-12435","engine":"chromium","lane":"url-spoofing","priorTo":"142.0.7444.59","sev":"Medium","bug":"446463993","mfsa":null,"stillVuln":null,"probe":null,"clientSide":true,"desc":"Incorrect security UI in Omnibox in Google Chrome on Android prior to 142.0.7444.59 allowed a remote attacker to perform UI spoofing via a crafted HTML page. (Chromium security severity: Medium)","note":"Omnibox UI spoofing, Chrome on Android. The V2 README described this as affecting Chromium generally; the record scopes it to Android."},{"cve":"CVE-2025-9180","engine":"firefox","lane":"canvas-sop","priorTo":null,"sev":null,"bug":"1979782","mfsa":["2025-64 (Firefox 142)","2025-65 (ESR 115.27)","2025-66 (ESR 128.14)","2025-67 (ESR 140.2)","2025-70/-71/-72 (Thunderbird)"],"stillVuln":["Firefox 141.x","ESR 115.26","ESR 128.13","ESR 140.1"],"probe":"CANVAS-02-offscreen-transfer-taint-propagation","clientSide":true,"desc":"Same-origin policy bypass in the Graphics: Canvas2D component. This vulnerability was fixed in Firefox 142, Firefox ESR 115.27, Firefox ESR 128.14, Firefox ESR 140.2, Thunderbird 142, Thunderbird 128.14, and Thunderbird 140.2.","note":"Same-origin policy bypass in Graphics: Canvas2D; Mozilla impact \"high\", reported by Tom Van Goethem. Mechanism read from the fix commit, not from a writeup: OffscreenCanvasDisplayHelper carried no write-only member at all, so tainting a canvas inside a Worker after transferControlToOffscreen() left the main-thread toDataURL()/toBlob() readback ungated. The leak is raw cross-origin pixel data — a full read primitive, not a timing oracle. The same patch also fixed a TOCTOU via recheckCanRead after async encode. No public POC exists and Mozilla shipped no in-tree test, so probe CANVAS-02 was written from the diff. This is why Firefox 141.x is the chosen vulnerable Firefox build here — it pairs with Chromium 141, the build this suite executes against."},{"cve":"CVE-2023-4045","engine":"firefox","lane":"canvas-sop","priorTo":null,"sev":null,"bug":"1833876","mfsa":["2023-29 (Firefox 116)"],"stillVuln":null,"probe":"CANVAS-02-offscreen-transfer-taint-propagation","clientSide":true,"desc":"Offscreen Canvas did not properly track cross-origin tainting, which could have been used to access image data from another site in violation of same-origin policy. This vulnerability affects Firefox < 116, Firefox ESR < 102.14, and Firefox ESR < 115.1.","note":"First of three shipped fixes for the same Offscreen Canvas cross-origin class: \"Offscreen Canvas could have bypassed cross-origin restrictions\", impact high, reported by Max Vlasov. Useful as a version-boundary regression anchor."},{"cve":"CVE-2024-5693","engine":"firefox","lane":"canvas-sop","priorTo":null,"sev":null,"bug":"1891319","mfsa":["2024-25 (Firefox 127)"],"stillVuln":null,"probe":"CANVAS-02-offscreen-transfer-taint-propagation","clientSide":true,"desc":"Offscreen Canvas did not properly track cross-origin tainting, which could be used to access image data from another site in violation of same-origin policy. This vulnerability affects Firefox < 127, Firefox ESR < 115.12, and Thunderbird < 115.12.","note":"Second of the three: \"Cross-Origin Image leak via Offscreen Canvas\", impact moderate. Three separate fixes for one class across Firefox 116, 127 and 142 is the strongest argument in this corpus that canvas taint is structurally fragile: the flag rides on an object, so every new canvas surface is a fresh chance to forget to propagate it."},{"cve":"CVE-2025-23109","engine":"firefox","lane":"url-spoofing","priorTo":null,"sev":null,"bug":null,"mfsa":null,"stillVuln":null,"probe":null,"clientSide":true,"desc":"Long hostnames in URLs could be leveraged to obscure the actual host of the website or spoof the website address. This vulnerability was fixed in Firefox for iOS 134.","note":"Long hostname address-bar spoof, Firefox for iOS. Needs a real iOS device; the record confirms the ID the V2 README used."},{"cve":"CVE-2026-20643","engine":"webkit","lane":"opener-navigation","priorTo":null,"sev":null,"bug":null,"mfsa":null,"stillVuln":null,"probe":null,"clientSide":true,"desc":"A cross-origin issue in the Navigation API was addressed with improved input validation. This issue is fixed in Background Security Improvements for iOS, iPadOS, and macOS, Safari 26.4, iOS 18.7.7 and iPadOS 18.7.7, iOS 26.4 and iPadOS 26.4, macOS Tahoe 26.4, visionOS 26.4. Processing maliciously cr","note":"Apple record: a cross-origin issue in the Navigation API. Unlike the Chromium \"Navigation\" component records, this one genuinely concerns the web-platform Navigation API."},{"cve":"CVE-2025-58485","engine":"other","lane":"script-execution","priorTo":null,"sev":null,"bug":null,"mfsa":null,"stillVuln":null,"probe":null,"clientSide":true,"desc":"Improper input validation in Samsung Internet prior to version 29.0.0.48 allows local attackers to inject arbitrary script.","note":"Samsung Internet, not Opera — the V2 README attributed this to Opera. Improper input validation allowing script injection."},{"cve":"CVE-2019-12278","engine":"other","lane":"url-spoofing","priorTo":null,"sev":null,"bug":null,"mfsa":null,"stillVuln":null,"probe":null,"clientSide":true,"desc":"Opera through 53 on Android allows Address Bar Spoofing. Characters from several languages are displayed in Right-to-Left order, due to mishandling of several Unicode characters. The rendering mechanism, in conjunction with the \"first strong character\" concept, may improperly operate on a numerical ","note":"Opera on Android, RTL Unicode address-bar spoof. Needs visible browser chrome."},{"cve":"CVE-2014-6041","engine":"other","lane":"origin-inheritance","priorTo":null,"sev":null,"bug":null,"mfsa":null,"stillVuln":null,"probe":null,"clientSide":true,"desc":"The Android WebView in Android before 4.4 allows remote attackers to bypass the Same Origin Policy via a crafted attribute containing a \\u0000 character, as demonstrated by an onclick=\"window.open('\\u0000javascript: sequence to the Android Browser application 4.2.1 or a third-party web browser.","note":"Android WebView SOP bypass via a NUL byte in an attribute. The bug the original V1.0 suite was built around."},{"cve":"CVE-2014-3160","engine":"chromium","lane":"header-policy","priorTo":null,"sev":null,"bug":null,"mfsa":null,"stillVuln":null,"probe":null,"clientSide":true,"desc":"The ResourceFetcher::canRequest function in core/fetch/ResourceFetcher.cpp in Blink, as used in Google Chrome before 36.0.1985.125, does not properly restrict subresource requests associated with SVG files, which allows remote attackers to bypass the Same Origin Policy via a crafted file.","note":"Blink ResourceFetcher::canRequest did not properly restrict subresource loads — an ancestor of the modern Loader policy records."}],"milestones":[{"engine":"chromium","milestone":115,"change":"document.domain setter stops relaxing the origin by default; the setter does not throw, it simply has no effect","optOut":"Origin-Agent-Cluster: ?0 on the main document AND every participating frame","probe":"RELAX-01 / RELAX-02 / RELAX-03","caveat":"In-tree Chromium documentation still says M106 in places. M106 was the announced plan; M115 was the milestone that shipped. Sources citing 106 are describing the plan."},{"engine":"firefox","milestone":138,"change":"Origin-Agent-Cluster request header supported (Chrome shipped it in 90). Gecko keeps the document.domain setter live and NOT pref-gated: dom/webidl/Document.webidl declares \"[SetterThrows] attribute DOMString domain\" with no [Pref]. Gecko's own warning string, \"Ignoring document.domain mutation in an origin-keyed agent cluster\", shows the mutation is ignored CONDITIONALLY, not generally.","optOut":null,"probe":"RELAX-01 / RELAX-02 / RELAX-03","caveat":"Prefs dom.origin_agent_cluster.enabled and .default exist, so the default flip is built but, on available evidence, not shipped. Their shipped values could not be read (StaticPrefList.yaml exceeds GitHub code-search limits) — check about:config on a real Firefox before relying on this. Origin-Agent-Cluster only engages in secure contexts, so an HTTP test origin cannot exercise it; this is why the lab serves HTTPS."},{"engine":"chromium","milestone":137,"change":"blob: URL access partitioned by Storage Key = (top-level site, frame origin, has-cross-site-ancestor); top-level navigations remain keyed on frame origin only. noopener enforced on renderer-initiated cross-site top-level blob navigations.","optOut":null,"probe":"INHERIT-02 / INHERIT-03","caveat":"Enterprise escape hatch PartitionedBlobUrlUsage was offered through Chrome 146."}]};</script>
+<script>
+(function(){
+'use strict';
+
+const DATA = window.__SOP_DATA__;
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const sleep = (ms) => new Promise(r=>setTimeout(r,ms));
+
+// Per-page secret. Probes that surface it from a frame have proven the frame
+// shares this document's origin — the frame was never given the value.
+const SECRET = 'ORIGIN-CANARY-' + Array.from(crypto.getRandomValues(new Uint8Array(8)))
+  .map(b=>b.toString(16).padStart(2,'0')).join('').toUpperCase();
+const holder = document.createElement('div');
+holder.id = 'origin-canary';
+holder.textContent = SECRET;
+holder.style.display = 'none';
+document.body.appendChild(holder);
+
+const found = (x) => { const m=/ORIGIN-CANARY-[0-9A-F]{16}/.exec(String(x)); return m?m[0]:null; };
+
+// ---------------------------------------------------------------- environment
+function detect(){
+  const ua = navigator.userAgent;
+  let engine='Unknown', name='Unknown', version=null;
+  const uaData = navigator.userAgentData;
+  if (/Firefox\/(\d+[\d.]*)/.test(ua)) {
+    engine='Gecko'; name='Firefox'; version=/Firefox\/(\d+[\d.]*)/.exec(ua)[1];
+  } else if (/Edg\/(\d+[\d.]*)/.test(ua)) {
+    engine='Blink'; name='Edge'; version=/Edg\/(\d+[\d.]*)/.exec(ua)[1];
+  } else if (/OPR\/(\d+[\d.]*)/.test(ua)) {
+    engine='Blink'; name='Opera'; version=/OPR\/(\d+[\d.]*)/.exec(ua)[1];
+  } else if (/SamsungBrowser\/(\d+[\d.]*)/.test(ua)) {
+    engine='Blink'; name='Samsung Internet'; version=/SamsungBrowser\/(\d+[\d.]*)/.exec(ua)[1];
+  } else if (/Chrome\/(\d+[\d.]*)/.test(ua)) {
+    engine='Blink'; name=/Chromium\//.test(ua)?'Chromium':'Chrome';
+    version=/Chrome\/(\d+[\d.]*)/.exec(ua)[1];
+  } else if (/Safari\//.test(ua)) {
+    engine='WebKit'; name='Safari';
+    const v=/Version\/(\d+[\d.]*)/.exec(ua); version=v?v[1]:null;
+  }
+  // UA-CH carries a fuller version than the frozen UA string on Blink.
+  if (uaData && uaData.brands) {
+    const b = uaData.brands.find(x=>/Chrome|Chromium|Edge|Opera/.test(x.brand) && !/Not/.test(x.brand));
+    if (b && b.version && (!version || b.version.split('.').length > version.split('.').length)) {
+      version = b.version;
+    }
+  }
+  const corpusEngine = engine==='Gecko'?'firefox':engine==='WebKit'?'webkit':'chromium';
+  return { engine, name, version, corpusEngine, ua,
+    mobile: uaData ? uaData.mobile : /Android|iPhone|iPad|Mobile/i.test(ua) };
+}
+
+function cmp(a,b){
+  const x=String(a).split('.').map(n=>parseInt(n,10)||0);
+  const y=String(b).split('.').map(n=>parseInt(n,10)||0);
+  for(let i=0;i<Math.max(x.length,y.length);i++){const d=(x[i]||0)-(y[i]||0); if(d) return d;}
+  return 0;
+}
+
+function exposure(env){
+  if(!env.version) return null;
+  const mine = DATA.cves.filter(c=>c.engine===env.corpusEngine);
+  const hits = mine.filter(c=>{
+    if(c.priorTo) return cmp(env.version,c.priorTo)<0;
+    if(c.mfsa){
+      const nums=c.mfsa.map(m=>(/(\d+(?:\.\d+)*)/.exec(String(m).replace(/^\d{4}-\d+\s*/,''))||[])[1]).filter(Boolean);
+      const major=parseInt(String(env.version).split('.')[0],10);
+      const same=nums.filter(n=>parseInt(n.split('.')[0],10)===major);
+      const boundary = same.length ? same.sort(cmp)[0]
+        : nums.sort(cmp).find(n=>parseInt(n.split('.')[0],10)>major) || nums.sort(cmp)[0];
+      return boundary ? cmp(env.version,boundary)<0 : false;
+    }
+    return false;
+  });
+  return { hits, considered: mine.length };
+}
+
+// ---------------------------------------------------------------- frame helper
+function addFrame(attrs){
+  const f = document.createElement('iframe');
+  for(const k in attrs){ f.setAttribute(k, attrs[k]); }
+  return new Promise(resolve=>{
+    let done=false; const fin=()=>{ if(!done){done=true;resolve(f);} };
+    f.addEventListener('load',fin); f.addEventListener('error',fin);
+    setTimeout(fin,3000);
+    $('stage').appendChild(f);
+  });
+}
+const drop = (f)=>{ try{ f&&f.remove(); }catch(_){} };
+
+/** Read a property path off a possibly cross-origin object without throwing. */
+function peek(obj,path){
+  try{
+    let cur=obj;
+    for(const p of path.split('.')){ cur=cur[p]; if(cur==null) break; }
+    return {ok:true,value:cur};
+  }catch(e){ return {ok:false,error:(e&&e.name?e.name:'Error')+': '+(e&&e.message||'')}; }
+}
+
+/** srcdoc payload that reports the parent's secret back by postMessage. */
+function reporter(tag){
+  return '<script>(function(){var o={t:'+JSON.stringify(tag)+',origin:null,stolen:null,err:null};'
+    +'try{o.origin=location.origin}catch(e){o.origin="<unreadable>"}'
+    +'try{o.stolen=(parent.document.getElementById("origin-canary")||{}).textContent||null}'
+    +'catch(e){o.err=(e&&e.name||"Error")}'
+    +'try{parent.postMessage(o,"*")}catch(e){}})()<\/script>';
+}
+
+function awaitReport(tag,ms){
+  return new Promise(resolve=>{
+    let hit=null;
+    const on=(e)=>{ if(e.data&&e.data.t===tag){ hit=e.data; } };
+    window.addEventListener('message',on);
+    const t0=Date.now();
+    (function tick(){
+      if(hit||Date.now()-t0>=(ms||2500)){ window.removeEventListener('message',on); return resolve(hit); }
+      setTimeout(tick,40);
+    })();
+  });
+}
+
+// ---------------------------------------------------------------- live probes
+const PROBES = [
+{
+  id:'LIVE-01', title:'document.domain still relaxes the origin',
+  why:'Chrome stopped honouring the setter by default in the 115 line: it does not '
+     +'throw, it simply has no effect. Gecko still honours it. So the question is not '
+     +'whether the setter exists but whether the value changes — and relaxation is '
+     +'irreversible, so this probe does it inside a throwaway frame rather than in this '
+     +'document. Relaxing here would null the port component of this page\'s origin and '
+     +'silently break the later probes, which is the same footgun the feature is '
+     +'notorious for.',
+  run: async ()=>{
+    const desc = Object.getOwnPropertyDescriptor(Document.prototype,'domain');
+    if(!desc || !desc.set) return {verdict:'UNSUPPORTED',detail:'no document.domain setter on Document.prototype'};
+    const host = location.hostname, labels = host.split('.');
+    const oac = ('originAgentCluster' in window) ? window.originAgentCluster : 'n/a';
+    if(labels.length < 3){
+      return {verdict:'UNSUPPORTED',
+        detail:'host "'+host+'" has too few labels to relax to a shorter suffix; setter '
+          +'exists, originAgentCluster='+oac+'. Try from a subdomain to exercise this.'};
+    }
+    const target = labels.slice(1).join('.');
+    const tag='dd-'+Math.random().toString(36).slice(2);
+    // srcdoc inherits this origin, so the frame starts from the same document.domain
+    // and its mutation stays confined to the frame.
+    const probeSrc = '<script>(function(){var o={t:'+JSON.stringify(tag)+',before:null,after:null,threw:null,stolen:null};'
+      +'try{o.before=document.domain}catch(e){}'
+      +'try{document.domain='+JSON.stringify(target)+'}catch(e){o.threw=(e&&e.name)||"Error"}'
+      +'try{o.after=document.domain}catch(e){}'
+      +'try{o.stolen=(parent.document.getElementById("origin-canary")||{}).textContent||null}catch(e){o.readErr=(e&&e.name)||"Error"}'
+      +'try{parent.postMessage(o,"*")}catch(e){}})()<\/script>';
+    const f = await addFrame({srcdoc:probeSrc});
+    const r = await awaitReport(tag);
+    drop(f);
+    if(!r) return {verdict:'ERROR',detail:'probe frame never reported'};
+    const changed = r.after && r.before && r.after !== r.before;
+    return {
+      verdict: changed ? 'BYPASS' : 'BLOCKED',
+      // The relaxed frame reading this document's secret is the proof the relaxation
+      // had an actual effect on the origin, not merely on the string.
+      evidence: changed ? found(r.stolen) : null,
+      detail:'in an isolated same-origin frame: '+r.before+' -> '+(r.after||'?')
+        +(r.threw?'; setter threw '+r.threw:'; setter did not throw')
+        +'; originAgentCluster='+oac
+        +'; post-relaxation read of this document='+(found(r.stolen)?'SUCCEEDED':'failed'+(r.readErr?' ('+r.readErr+')':''))
+        +(changed?' — relaxation is LIVE in this build':' — silent no-op, relaxation is off by default')
+    };
+  }
+},
+{
+  id:'LIVE-02', title:'sandbox="allow-scripts allow-same-origin" escapes its own sandbox',
+  why:'Granting both tokens to same-origin content is self-defeating: the frame keeps '
+     +'this document\'s origin, so it can read the DOM and delete its own sandbox '
+     +'attribute. Any site serving user uploads or previews from its own origin under '
+     +'these two tokens has handed that content full origin authority.',
+  run: async ()=>{
+    const tag='esc-'+Math.random().toString(36).slice(2);
+    const f = await addFrame({sandbox:'allow-scripts allow-same-origin', srcdoc:reporter(tag)});
+    const r = await awaitReport(tag);
+    // Second half of the escape: can it remove its own confinement?
+    let cleared=null;
+    try{
+      f.contentWindow.eval('var me=parent.document.querySelector("iframe[sandbox]");'
+        +'if(me){me.removeAttribute("sandbox")}');
+      cleared = !f.hasAttribute('sandbox');
+    }catch(e){ cleared = 'blocked: '+(e&&e.name||'Error'); }
+    drop(f);
+    const got = r && found(r.stolen);
+    return { verdict: got?'BYPASS':'BLOCKED', evidence: got,
+      detail:'frame origin='+(r?r.origin:'no report')
+        +'; parent DOM read='+(got?'SUCCEEDED':'failed'+(r&&r.err?' ('+r.err+')':''))
+        +'; sandbox self-removal='+cleared };
+  }
+},
+{
+  id:'LIVE-03', title:'sandbox without allow-same-origin gets an opaque origin',
+  why:'The control that makes LIVE-02 meaningful. Same markup, one token removed. The '
+     +'frame now has an opaque origin and must not reach this document — which proves '
+     +'LIVE-02 is about origin inheritance, not about sandbox parsing.',
+  run: async ()=>{
+    const tag='opq-'+Math.random().toString(36).slice(2);
+    const f = await addFrame({sandbox:'allow-scripts', srcdoc:reporter(tag)});
+    const r = await awaitReport(tag);
+    const surface = peek(f,'contentWindow.document');
+    drop(f);
+    const got = r && found(r.stolen);
+    return { verdict: got?'BYPASS':'BLOCKED', evidence: got,
+      detail:'frame reported origin='+(r?r.origin:'no report')
+        +'; its parent DOM read='+(got?'SUCCEEDED — boundary failed':'threw '+(r&&r.err||'n/a')+' as required')
+        +'; parent->frame document access='+(surface.ok?'RESOLVED':'blocked ('+surface.error.split(':')[0]+')') };
+  }
+},
+{
+  id:'LIVE-04', title:'iframe srcdoc inherits this document\'s origin',
+  why:'A srcdoc frame has no URL of its own and takes the embedder\'s origin. Harmless '
+     +'alone; decisive when srcdoc content survives an HTML sanitiser, because injected '
+     +'markup then runs with full origin authority.',
+  run: async ()=>{
+    const tag='sd-'+Math.random().toString(36).slice(2);
+    const f = await addFrame({srcdoc:reporter(tag)});
+    const r = await awaitReport(tag);
+    drop(f);
+    const got = r && found(r.stolen);
+    return { verdict: got?'BYPASS':'BLOCKED', evidence: got,
+      detail:'frame origin='+(r?r.origin:'no report')
+        +'; read the embedder\'s DOM='+(got?'yes':'no'+(r&&r.err?' ('+r.err+')':'')) };
+  }
+},
+{
+  id:'LIVE-05', title:'blob: URL document inherits its creator\'s origin',
+  why:'blob:<scheme>//<host>/<uuid> executes in the origin that minted it, so a blob '
+     +'frame is same-origin with its creator and is not a boundary. Chrome 137 '
+     +'partitioned blob URL access by storage key; this records what your build does.',
+  run: async ()=>{
+    const tag='bl-'+Math.random().toString(36).slice(2);
+    const url = URL.createObjectURL(new Blob([reporter(tag)],{type:'text/html'}));
+    const f = await addFrame({src:url});
+    const r = await awaitReport(tag);
+    drop(f); URL.revokeObjectURL(url);
+    const got = r && found(r.stolen);
+    return { verdict: got?'BYPASS':'BLOCKED', evidence: got,
+      detail:'blob URL='+url.slice(0,58)+'…; frame origin='+(r?r.origin:'no report')
+        +'; read the creator\'s DOM='+(got?'yes':'no'+(r&&r.err?' ('+r.err+')':'')) };
+  }
+},
+{
+  id:'LIVE-06', title:'javascript: URI against an opaque-origin sandboxed frame',
+  why:'A javascript: URI runs in the origin of the document being navigated, so if an '
+     +'embedder can aim one at a frame it does not own, that is direct script injection '
+     +'— the classic UXSS shape. Engines are reported to differ here, and the claim that '
+     +'Gecko executes these in sandboxed frames where Blink and WebKit do not is widely '
+     +'repeated but poorly evidenced. This probe settles it for your build.',
+  run: async ()=>{
+    const tag='js-'+Math.random().toString(36).slice(2);
+    window.__jsuri_hits__ = window.__jsuri_hits__ || [];
+    const payload = 'javascript:try{parent.__jsuri_hits__.push({t:'+JSON.stringify(tag)
+      +',origin:location.origin,stolen:(parent.document.getElementById("origin-canary")||{}).textContent})}catch(e){}';
+    const routes=[];
+    // Route A: parent sets iframe.src directly.
+    const f = await addFrame({sandbox:'allow-scripts', srcdoc:'<p>a</p>'});
+    try{ f.setAttribute('src', payload); routes.push('src-attribute:set'); }
+    catch(e){ routes.push('src-attribute:threw('+(e&&e.name)+')'); }
+    await sleep(500);
+    // Route B: parent drives the frame's location.
+    try{ f.contentWindow.location = payload; routes.push('contentWindow.location:set'); }
+    catch(e){ routes.push('contentWindow.location:threw('+(e&&e.name||'Error')+')'); }
+    await sleep(500);
+    const hits = (window.__jsuri_hits__||[]).filter(h=>h.t===tag);
+    drop(f);
+    const got = hits.length ? found(hits[0].stolen) : null;
+    return { verdict: got?'BYPASS':'BLOCKED', evidence: got,
+      detail:'routes=['+routes.join(' | ')+']; executions='+hits.length
+        +(hits.length?'; executed in origin='+hits[0].origin:'')
+        +'; '+(got?'script ran AND read the embedder\'s DOM'
+                   :'javascript: URI did not execute in the sandboxed frame'
+                    +' (a console security message here is the refusal, not a page error)') };
+  }
+},
+{
+  id:'LIVE-07', title:'Readable property surface of an opaque-origin Window',
+  why:'A cross-origin Window is not fully opaque — the spec keeps a small allowlist. '
+     +'Enumerating what actually reads back shows the true size of the leak surface; '
+     +'anything readable outside that allowlist is an engine bug.',
+  run: async ()=>{
+    const f = await addFrame({sandbox:'allow-scripts', srcdoc:'<p>surface</p>'});
+    const allow=['length','closed','top','opener','parent','frames','self','window','location','postMessage','close','focus','blur'];
+    const tryList=['length','closed','origin','name','document.cookie','document.title',
+      'document.body.innerHTML','localStorage','history.length','location.href','navigator.userAgent'];
+    const readable=[], blocked=[];
+    for(const p of tryList){
+      const r=peek(f.contentWindow,p);
+      if(r.ok && r.value!==undefined) readable.push(p+'='+String(r.value).slice(0,28));
+      else blocked.push(p);
+    }
+    drop(f);
+    const outside = readable.filter(s=>{const k=s.split('=')[0]; return k.includes('.')||!allow.includes(k);});
+    return { verdict: outside.length?'INCONCLUSIVE':'BLOCKED',
+      detail:'readable=['+readable.join(', ')+']; blocked='+blocked.length
+        +'; outside the spec allowlist=['+(outside.join(', ')||'none')+']' };
+  }
+},
+{
+  id:'LIVE-08', title:'Platform surface relevant to origin isolation',
+  why:'Not a boundary test — a record of which isolation primitives your build exposes, '
+     +'since several probes above branch on them and the answers differ sharply between '
+     +'engines and between desktop and mobile.',
+  run: async ()=>{
+    const feats={
+      navigationAPI: typeof window.navigation!=='undefined',
+      fencedFrame: typeof window.HTMLFencedFrameElement!=='undefined',
+      crossOriginIsolated: typeof crossOriginIsolated!=='undefined'?crossOriginIsolated:'n/a',
+      sharedArrayBuffer: typeof SharedArrayBuffer!=='undefined',
+      originAgentCluster: 'originAgentCluster' in window ? window.originAgentCluster : 'n/a',
+      documentDomainSetter: !!(Object.getOwnPropertyDescriptor(Document.prototype,'domain')||{}).set,
+      secureContext: window.isSecureContext,
+      storageAccessAPI: typeof document.requestStorageAccess==='function',
+      cookieStore: typeof window.cookieStore!=='undefined'
+    };
+    return { verdict:'INCONCLUSIVE',
+      detail: Object.entries(feats).map(([k,v])=>k+'='+v).join('  ') };
+  }
+}];
+
+// ---------------------------------------------------------------- rendering
+let showWhy = true;
+let lastResults = {};
+
+function probeCard(p, result){
+  const v = result ? result.verdict : 'PENDING';
+  const cls = v==='BYPASS'?'crossed':v==='BLOCKED'?'held':v==='INCONCLUSIVE'?'part':'none';
+  return '<div class="probe '+cls+'">'
+    +'<div class="ptop"><span class="pill p-'+esc(v)+'">'+esc(v.toLowerCase())+'</span>'
+    +'<h3 style="margin:0">'+esc(p.title)+'</h3>'
+    +'<span class="pid">'+esc(p.id)+'</span></div>'
+    +(showWhy?'<p class="pwhy">'+esc(p.why)+'</p>':'')
+    +(result&&result.detail?'<div class="pdetail">'+esc(result.detail)+'</div>':'')
+    +'</div>';
+}
+
+function renderLive(results){
+  lastResults = results || {};
+  $('live').innerHTML = PROBES.map(p=>probeCard(p,lastResults[p.id])).join('');
+}
+
+async function runAll(){
+  const btn=$('run'); btn.disabled=true; btn.textContent='Running…';
+  const results={}; renderLive(results);
+  for(const p of PROBES){
+    $('run-state').textContent = p.id;
+    let out;
+    try{
+      out = await Promise.race([p.run(), sleep(12000).then(()=>({verdict:'ERROR',detail:'exceeded 12s budget'}))]);
+    }catch(e){ out={verdict:'ERROR',detail:String(e&&e.stack||e).slice(0,300)}; }
+    // Same integrity rule as the lab runner: a BYPASS needs the secret as evidence.
+    if(out.verdict==='BYPASS' && !(out.evidence && String(out.evidence).includes(SECRET))){
+      out.verdict='INCONCLUSIVE';
+      out.detail=(out.detail||'')+'  [downgraded: claimed bypass without verifiable evidence]';
+    }
+    results[p.id]=out; renderLive(results);
+    await sleep(40);
+  }
+  const n=Object.values(results).filter(r=>r.verdict==='BYPASS').length;
+  $('run-state').textContent = n+' crossed / '+PROBES.length+' run';
+  btn.disabled=false; btn.textContent='Re-run probes';
+}
+
+// ---------------------------------------------------------------- lab + CVEs
+function renderLab(filter){
+  const rows = DATA.lab.probes.filter(p=>filter==='all'||p.verdict===filter);
+  $('labrun').innerHTML = rows.map(p=>{
+    const cls = p.verdict==='BYPASS'?'crossed':p.verdict==='BLOCKED'?'held':p.verdict==='INCONCLUSIVE'?'part':'none';
+    return '<div class="probe '+cls+'">'
+      +'<div class="ptop"><span class="pill p-'+esc(p.verdict)+'">'+esc(p.verdict.toLowerCase())+'</span>'
+      +'<h3 style="margin:0">'+esc(p.title)+'</h3>'
+      +'<span class="pid">'+esc(p.id)+'</span>'
+      +'<span class="tag">'+esc(p.lane)+'</span>'
+      +'<span class="tag">ran on '+esc(p.runOn)+'</span>'
+      +(p.verified?'<span class="tag" style="color:var(--bypass)">secret verified</span>':'')
+      +'</div>'
+      +(showWhy?'<p class="pwhy">'+esc(p.why)+'</p>':'')
+      +'<div class="pdetail">'+esc(p.detail)+'</div></div>';
+  }).join('') || '<p style="color:var(--ink-faint)">No probes with that verdict.</p>';
+}
+
+function renderCves(env){
+  const exp = env.version ? exposure(env) : null;
+  const mine = new Set(exp ? exp.hits.map(h=>h.cve) : []);
+  const sorted = DATA.cves.slice().sort((a,b)=>
+    (mine.has(b.cve)?1:0)-(mine.has(a.cve)?1:0) || a.cve.localeCompare(b.cve));
+  $('cvebody').innerHTML = sorted.map(c=>{
+    const flag = mine.has(c.cve);
+    return '<tr'+(flag?' style="background:var(--bypass-bg)"':'')+'>'
+      +'<td class="n">'+esc(c.cve)+(flag?'<br><span class="pill p-BYPASS">your build</span>':'')+'</td>'
+      +'<td class="n">'+esc(c.engine)+'</td>'
+      +'<td class="n">'+esc(c.priorTo||(c.mfsa?c.mfsa[0]:'—'))+'</td>'
+      +'<td class="n">'+esc(c.sev||'—')+'</td>'
+      +'<td class="n">'+esc(c.bug||'—')+'</td>'
+      +'<td class="n">'+(c.clientSide?'page':'needs device/renderer')+'</td>'
+      +'<td class="wide">'+esc(c.note.slice(0,220))+'</td></tr>';
+  }).join('');
+}
+
+function renderMilestones(){
+  $('milestones').innerHTML = DATA.milestones.map(m=>
+    '<div class="probe none"><div class="ptop"><h3 style="margin:0">'
+    +esc(m.engine)+' '+esc(m.milestone)+'</h3>'
+    +(m.probe?'<span class="tag">'+esc(m.probe)+'</span>':'')+'</div>'
+    +'<p class="pwhy">'+esc(m.change)+'</p>'
+    +(m.optOut?'<div class="pdetail">opt out: '+esc(m.optOut)+'</div>':'')
+    +(m.caveat?'<p class="pwhy" style="color:var(--partial)">'+esc(m.caveat)+'</p>':'')
+    +'</div>').join('');
+}
+
+// ---------------------------------------------------------------- boot
+const env = detect();
+$('d-engine').textContent = env.name+' ('+env.engine+')';
+$('d-version').textContent = env.version || 'unknown';
+$('d-origin').textContent = location.origin;
+$('d-secure').textContent = window.isSecureContext ? 'yes' : 'no';
+$('d-oac').textContent = 'originAgentCluster' in window ? String(window.originAgentCluster) : 'not exposed';
+const exp = exposure(env);
+$('d-cve').textContent = exp
+  ? exp.hits.length+' of '+exp.considered+' '+env.corpusEngine+' records'
+  : 'version not parsable';
+if(exp && exp.hits.length) $('d-cve').style.color='var(--bypass)';
+
+$('l-engine').textContent = DATA.lab.engine;
+$('l-total').textContent = DATA.lab.probes.length;
+$('l-split').textContent = (DATA.lab.counts.BYPASS||0)+' / '+(DATA.lab.counts.BLOCKED||0);
+$('l-missing').textContent = DATA.lab.enginesUnavailable.map(e=>e.engine).join(', ') || 'none';
+
+renderLive({}); renderLab('all'); renderCves(env); renderMilestones();
+
+$('run').addEventListener('click', runAll);
+$('toggle-why').addEventListener('click', (e)=>{
+  showWhy = !showWhy;
+  e.currentTarget.setAttribute('aria-pressed', String(showWhy));
+  renderLive(lastResults); renderLab(document.querySelector('[data-f][aria-pressed="true"]').dataset.f);
+});
+document.querySelectorAll('[data-f]').forEach(b=>{
+  b.addEventListener('click',()=>{
+    document.querySelectorAll('[data-f]').forEach(x=>x.setAttribute('aria-pressed','false'));
+    b.setAttribute('aria-pressed','true');
+    renderLab(b.dataset.f);
+  });
+});
+})();
+</script>

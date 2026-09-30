@@ -1,8 +1,8 @@
 {
   "schema": "sop-lab/run/1",
-  "generatedAt": "2026-09-30T01:05:37.455Z",
-  "runId": "1c46e2d81f0d",
-  "canaryFingerprint": "SOPLAB-CANARY-1CE4B63A…",
+  "generatedAt": "2026-09-30T01:12:58.460Z",
+  "runId": "25a3202e2ea5",
+  "canaryFingerprint": "SOPLAB-CANARY-71D07148…",
   "origins": {
     "VICTIM": "https://victim.sop-lab.test:8443",
     "DOCUMENTED": "https://documented.sop-lab.test:8443",
@@ -10,7 +10,8 @@
     "SIBLING": "https://sub.victim.sop-lab.test:8443",
     "PARENT": "https://sop-lab.test:8443",
     "ALTPORT": "https://victim.sop-lab.test:9443",
-    "INSECURE": "http://victim.sop-lab.test:8080"
+    "INSECURE": "http://victim.sop-lab.test:8080",
+    "INSECURE_SIBLING": "http://sub.victim.sop-lab.test:8080"
   },
   "enginesRequested": [
     "chromium",
@@ -33,7 +34,7 @@
   "summary": {
     "counts": {
       "BLOCKED": 17,
-      "BYPASS": 8,
+      "BYPASS": 9,
       "INCONCLUSIVE": 4
     },
     "verifiedBypasses": [
@@ -65,13 +66,19 @@
         "id": "INHERIT-02-blob-url-inherits-creator-origin",
         "engine": "chromium",
         "lane": "origin-inheritance",
-        "detail": "blobUrl=blob:https://victim.sop-lab.test:8443/54ec85bc-6e3c-4364-aee0-1a frame origin=https://victim.sop-lab.test:8443"
+        "detail": "blobUrl=blob:https://victim.sop-lab.test:8443/e88a5e30-f496-4108-bc26-f4 frame origin=https://victim.sop-lab.test:8443"
       },
       {
         "id": "RELAX-02-document-domain-mutual-optout",
         "engine": "chromium",
         "lane": "origin-relaxation",
         "detail": "self.domain=sop-lab.test selfRelaxed=true originAgentCluster=false (opt-out honoured) setterOk frameRelaxedTo=sop-lab.test crossRead=RESOLVED"
+      },
+      {
+        "id": "RELAX-04-insecure-origin-relaxation",
+        "engine": "chromium",
+        "lane": "origin-relaxation",
+        "detail": "secureContext=false originAgentCluster=false domain sub.victim.sop-lab.test -> sop-lab.test (CHANGED) setterOk crossRead=RESOLVED — no Origin-Agent-Cluster header was sent to either document"
       },
       {
         "id": "MSG-01-postmessage-wildcard-target",
@@ -127,7 +134,7 @@
             "webkit": "BLOCKED"
           },
           "loadedOrigin": "https://attacker.sop-lab.test:8443",
-          "ms": 16,
+          "ms": 18,
           "verdict": "BLOCKED",
           "detail": "documented=https://documented.sop-lab.test:8443 loaded=https://attacker.sop-lab.test:8443 authorisedReader=false — canary not readable, CORS held",
           "evidence": null,
@@ -161,7 +168,7 @@
             "webkit": "BYPASS"
           },
           "loadedOrigin": "https://attacker.sop-lab.test:8443",
-          "ms": 7,
+          "ms": 6,
           "verdict": "BYPASS",
           "detail": "wildcard ACAO let an unauthorised origin read canary material",
           "evidence": "<CANARY:verified-in-run>",
@@ -189,7 +196,7 @@
             "webkit": "BLOCKED"
           },
           "loadedOrigin": "https://attacker.sop-lab.test:8443",
-          "ms": 6,
+          "ms": 8,
           "verdict": "BLOCKED",
           "detail": "fetch rejected as expected: Failed to fetch",
           "evidence": null,
@@ -220,7 +227,7 @@
             "webkit": "BLOCKED"
           },
           "loadedOrigin": "https://attacker.sop-lab.test:8443",
-          "ms": 6,
+          "ms": 5,
           "verdict": "BLOCKED",
           "detail": "type=opaque status=0 bodyLen=0 — request was dispatched; body opaque as required",
           "evidence": null,
@@ -336,7 +343,7 @@
             "webkit": "BYPASS"
           },
           "loadedOrigin": "https://victim.sop-lab.test:8443",
-          "ms": 171,
+          "ms": 175,
           "verdict": "BYPASS",
           "detail": "reachedParent=true sandboxCleared=true",
           "evidence": "<CANARY:verified-in-run>",
@@ -364,7 +371,7 @@
             "webkit": "BLOCKED"
           },
           "loadedOrigin": "https://victim.sop-lab.test:8443",
-          "ms": 27,
+          "ms": 19,
           "verdict": "BLOCKED",
           "detail": "blocked: SecurityError: Failed to read a named property 'document' from 'Window': Blocked a frame with origin \"https://victim.sop-lab.test:8443\" from accessing a cross-origin frame.",
           "evidence": null,
@@ -421,9 +428,9 @@
             "webkit": "BYPASS"
           },
           "loadedOrigin": "https://victim.sop-lab.test:8443",
-          "ms": 59,
+          "ms": 67,
           "verdict": "BYPASS",
-          "detail": "blobUrl=blob:https://victim.sop-lab.test:8443/54ec85bc-6e3c-4364-aee0-1a frame origin=https://victim.sop-lab.test:8443",
+          "detail": "blobUrl=blob:https://victim.sop-lab.test:8443/e88a5e30-f496-4108-bc26-f4 frame origin=https://victim.sop-lab.test:8443",
           "evidence": "<CANARY:verified-in-run>",
           "engine": "chromium",
           "servedFrom": "https://victim.sop-lab.test:8443",
@@ -450,16 +457,16 @@
             "webkit": "BLOCKED"
           },
           "loadedOrigin": "https://attacker.sop-lab.test:8443",
-          "ms": 4027,
+          "ms": 4044,
           "verdict": "BLOCKED",
-          "detail": "blobUrl=blob:https://victim.sop-lab.test:8443/36594c4e-dfa6-455e-bf85-f9b5d476d3 | fetch=rejected: TypeError: Failed to fetch | frameRead=len=0 — holding a foreign origin's blob URL is not sufficient; the store is partitioned",
+          "detail": "blobUrl=blob:https://victim.sop-lab.test:8443/7a68cfde-9b8a-4c3c-8f59-feabbb0eba | fetch=rejected: TypeError: Failed to fetch | frameRead=len=0 — holding a foreign origin's blob URL is not sufficient; the store is partitioned",
           "evidence": null,
           "engine": "chromium",
           "servedFrom": "https://attacker.sop-lab.test:8443",
           "harnessUrl": "https://attacker.sop-lab.test:8443/probes/harness.html",
           "consoleErrors": [
-            "Fetch API cannot load blob:https://victim.sop-lab.test:8443/36594c4e-dfa6-455e-bf85-f9b5d476d38e. URL scheme \"blob\" is not supported.",
-            "Not allowed to load local resource: blob:https://victim.sop-lab.test:8443/36594c4e-dfa6-455e-bf85-f9b5d476d38e"
+            "Fetch API cannot load blob:https://victim.sop-lab.test:8443/7a68cfde-9b8a-4c3c-8f59-feabbb0eba55. URL scheme \"blob\" is not supported.",
+            "Not allowed to load local resource: blob:https://victim.sop-lab.test:8443/7a68cfde-9b8a-4c3c-8f59-feabbb0eba55"
           ],
           "claimedVerdict": "BLOCKED",
           "canaryVerified": false,
@@ -482,7 +489,7 @@
             "webkit": "BLOCKED"
           },
           "loadedOrigin": "https://victim.sop-lab.test:8443",
-          "ms": 2558,
+          "ms": 2556,
           "verdict": "BLOCKED",
           "detail": "javascript: URI did not execute in the cross-origin frame (SecurityError: Failed to set a named property 'href' on 'Location': The current window does not have permission to navig)",
           "evidence": null,
@@ -573,7 +580,7 @@
             "webkit": "BLOCKED"
           },
           "loadedOrigin": "https://sub.victim.sop-lab.test:8443",
-          "ms": 320,
+          "ms": 322,
           "verdict": "BLOCKED",
           "detail": "self.domain=sop-lab.test (relaxed) target=NOT relaxed setterOk crossRead=blocked, mutual opt-in correctly required",
           "evidence": null,
@@ -584,6 +591,38 @@
           "claimedVerdict": "BLOCKED",
           "canaryVerified": false,
           "expected": "BLOCKED",
+          "divergesFromExpectation": false
+        },
+        {
+          "id": "RELAX-04-insecure-origin-relaxation",
+          "lane": "origin-relaxation",
+          "title": "document.domain relaxation on an insecure origin, with no opt-out header",
+          "why": "Origin-Agent-Cluster is only honoured in a secure context. If that is what carries the Chrome 115 default-flip, then plain http origins never received it and keep document.domain relaxation unconditionally — no header, no cooperation from the server, nothing to opt into. That would make the \"document.domain was disabled in 115\" summary true only of https, which is a materially different claim. Run as the pair to RELAX-01: identical logic, insecure scheme.",
+          "runOn": "INSECURE_SIBLING",
+          "references": [
+            "Origin-Agent-Cluster header (secure-context gated)",
+            "Chrome 115 document.domain deprecation",
+            "HTML Standard §document.domain"
+          ],
+          "expect": {
+            "chromium": "BYPASS",
+            "firefox": "BYPASS",
+            "webkit": "BYPASS"
+          },
+          "loadedOrigin": "http://sub.victim.sop-lab.test:8080",
+          "ms": 29,
+          "verdict": "BYPASS",
+          "detail": "secureContext=false originAgentCluster=false domain sub.victim.sop-lab.test -> sop-lab.test (CHANGED) setterOk crossRead=RESOLVED — no Origin-Agent-Cluster header was sent to either document",
+          "evidence": "<CANARY:verified-in-run>",
+          "engine": "chromium",
+          "servedFrom": "http://sub.victim.sop-lab.test:8080",
+          "harnessUrl": "http://sub.victim.sop-lab.test:8080/probes/harness.html",
+          "consoleErrors": [
+            "Failed to load resource: the server responded with a status of 404 (Not Found)"
+          ],
+          "claimedVerdict": "BYPASS",
+          "canaryVerified": true,
+          "expected": "BYPASS",
           "divergesFromExpectation": false
         },
         {
@@ -601,7 +640,7 @@
             "webkit": "BLOCKED"
           },
           "loadedOrigin": "https://attacker.sop-lab.test:8443",
-          "ms": 19,
+          "ms": 28,
           "verdict": "BLOCKED",
           "detail": "readable=[length=0, closed=false] blocked=9 outsideAllowlist=[]",
           "evidence": null,
@@ -646,7 +685,7 @@
             "webkit": "INCONCLUSIVE"
           },
           "loadedOrigin": "https://attacker.sop-lab.test:8443",
-          "ms": 28,
+          "ms": 21,
           "verdict": "INCONCLUSIVE",
           "detail": "cross-origin frames.length readable = 0 (state oracle, no canary crosses)",
           "evidence": null,
@@ -674,7 +713,7 @@
             "webkit": "BLOCKED"
           },
           "loadedOrigin": "https://attacker.sop-lab.test:8443",
-          "ms": 17,
+          "ms": 24,
           "verdict": "BLOCKED",
           "detail": "write threw: SecurityError: Failed to set a named property 'name' on 'Window': Blocked a frame with ori; readback blocked — name is a channel, not a canary read",
           "evidence": null,
@@ -703,7 +742,7 @@
             "webkit": "BYPASS"
           },
           "loadedOrigin": "https://attacker.sop-lab.test:8443",
-          "ms": 21,
+          "ms": 22,
           "verdict": "BYPASS",
           "detail": "received from origin=https://victim.sop-lab.test:8443 at listener on https://attacker.sop-lab.test:8443 — wildcard targetOrigin delivered victim-origin secret to a foreign listener with no origin check",
           "evidence": "<CANARY:verified-in-run>",
@@ -731,7 +770,7 @@
             "webkit": "BLOCKED"
           },
           "loadedOrigin": "https://attacker.sop-lab.test:8443",
-          "ms": 621,
+          "ms": 619,
           "verdict": "BLOCKED",
           "detail": "messages=0 misattributed=0 origins=[]",
           "evidence": null,
@@ -759,7 +798,7 @@
             "webkit": "INCONCLUSIVE"
           },
           "loadedOrigin": "https://attacker.sop-lab.test:8443",
-          "ms": 9,
+          "ms": 8,
           "verdict": "INCONCLUSIVE",
           "detail": "200=>load 404=>error — status distinguishable cross-origin (oracle open)",
           "evidence": null,
@@ -791,9 +830,9 @@
             "webkit": "INCONCLUSIVE"
           },
           "loadedOrigin": "https://attacker.sop-lab.test:8443",
-          "ms": 559,
+          "ms": 558,
           "verdict": "INCONCLUSIVE",
-          "detail": "entry present; duration=256ms responseStart=0 redirectCount=undefined timingsCoarsened=true — existence and duration leak regardless",
+          "detail": "entry present; duration=254ms responseStart=0 redirectCount=undefined timingsCoarsened=true — existence and duration leak regardless",
           "evidence": null,
           "engine": "chromium",
           "servedFrom": "https://attacker.sop-lab.test:8443",
@@ -850,7 +889,7 @@
             "webkit": "BLOCKED"
           },
           "loadedOrigin": "https://attacker.sop-lab.test:8443",
-          "ms": 8,
+          "ms": 9,
           "verdict": "BLOCKED",
           "detail": "imageWidth=46 getImageData=threw (tainted, correct) toDataURL=threw SecurityError (tainted, correct)",
           "evidence": null,
@@ -881,7 +920,7 @@
             "webkit": "UNSUPPORTED"
           },
           "loadedOrigin": "https://attacker.sop-lab.test:8443",
-          "ms": 176,
+          "ms": 178,
           "verdict": "BLOCKED",
           "detail": "gates=[transfer-bitmap:refused(DataCloneError) | copy-bitmap:refused(DataCloneError) | worker-fetch:accepted] worker={\"drew\":false,\"route\":\"worker-fetch\",\"err\":null,\"workerFetchErr\":\"InvalidStateError\"} mainThread toDataURL=RESOLVED len=154 recoveredPixels=\"\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\" — placeholder readback was gated",
           "evidence": null,
@@ -939,7 +978,7 @@
             "webkit": "BLOCKED"
           },
           "loadedOrigin": "https://victim.sop-lab.test:8443",
-          "ms": 23,
+          "ms": 24,
           "verdict": "BLOCKED",
           "detail": "altport read=blocked: SecurityError: Failed to read a named property 'eval' from 'Window': Blocked a frame with origin \"https://victim.sop-lab — port is  part of the storage key",
           "evidence": null,
@@ -967,7 +1006,7 @@
             "webkit": "BLOCKED"
           },
           "loadedOrigin": "https://victim.sop-lab.test:8443",
-          "ms": 4004,
+          "ms": 4003,
           "verdict": "BLOCKED",
           "detail": "read resolved across scheme boundary",
           "evidence": null,
@@ -984,13 +1023,13 @@
         }
       ],
       "serverHits": {
-        "runId": "1c46e2d81f0d",
+        "runId": "25a3202e2ea5",
         "count": 1,
         "leaks": 0,
         "hits": [
           {
             "seq": 1,
-            "at": "2026-09-30T01:05:19.341Z",
+            "at": "2026-09-30T01:12:40.024Z",
             "kind": "collect:GET",
             "host": "attacker.sop-lab.test:8443",
             "referer": null,

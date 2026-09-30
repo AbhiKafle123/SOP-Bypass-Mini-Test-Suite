@@ -56,6 +56,9 @@ const ORIGINS = {
   PARENT: `https://sop-lab.test:${PORT_TLS}`,
   ALTPORT: `https://victim.sop-lab.test:${PORT_TLS_ALT}`,
   INSECURE: `http://victim.sop-lab.test:${PORT_PLAIN}`,
+  // Insecure sibling: needed because Origin-Agent-Cluster only engages in a
+  // secure context, so the document.domain default-flip may not reach http at all.
+  INSECURE_SIBLING: `http://sub.victim.sop-lab.test:${PORT_PLAIN}`,
 };
 
 const MIME = {

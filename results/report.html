@@ -31,10 +31,10 @@
  code{color:#93c5fd}
 </style></head><body>
 <h1>SOP Lab results</h1>
-<div class="sub">run 1c46e2d81f0d &middot; 2026-09-30T01:05:37.455Z &middot;
- canary <code>SOPLAB-CANARY-1CE4B63A…</code></div>
+<div class="sub">run 25a3202e2ea5 &middot; 2026-09-30T01:12:58.460Z &middot;
+ canary <code>SOPLAB-CANARY-71D07148…</code></div>
 <div class="cards">
-<div class="card"><b>17</b>blocked</div><div class="card"><b>8</b>bypass</div><div class="card"><b>4</b>inconclusive</div>
+<div class="card"><b>17</b>blocked</div><div class="card"><b>9</b>bypass</div><div class="card"><b>4</b>inconclusive</div>
 </div>
 <h3>Engines</h3><ul><li><b>chromium</b> —
     Chromium 141.0.7390.37<br>
@@ -170,7 +170,7 @@
   <td>chromium</td>
   <td>VICTIM</td>
   <td><b class="yes">verified</b></td>
-  <td class="detail">blob: URL document inherits its creator origin<br><span class="d">blobUrl=blob:https://victim.sop-lab.test:8443/54ec85bc-6e3c-4364-aee0-1a frame origin=https://victim.sop-lab.test:8443</span>
+  <td class="detail">blob: URL document inherits its creator origin<br><span class="d">blobUrl=blob:https://victim.sop-lab.test:8443/e88a5e30-f496-4108-bc26-f4 frame origin=https://victim.sop-lab.test:8443</span>
       </td>
 </tr>
 <tr class="v-BLOCKED">
@@ -182,7 +182,7 @@
   <td>chromium</td>
   <td>ATTACKER</td>
   <td><span class="no">-</span></td>
-  <td class="detail">blob: URL minted on one origin, dereferenced from another<br><span class="d">blobUrl=blob:https://victim.sop-lab.test:8443/36594c4e-dfa6-455e-bf85-f9b5d476d3 | fetch=rejected: TypeError: Failed to fetch | frameRead=len=0 — holding a foreign origin's blob URL is not sufficient; the store is partitioned</span>
+  <td class="detail">blob: URL minted on one origin, dereferenced from another<br><span class="d">blobUrl=blob:https://victim.sop-lab.test:8443/7a68cfde-9b8a-4c3c-8f59-feabbb0eba | fetch=rejected: TypeError: Failed to fetch | frameRead=len=0 — holding a foreign origin's blob URL is not sufficient; the store is partitioned</span>
       </td>
 </tr>
 <tr class="v-BLOCKED">
@@ -231,6 +231,18 @@
   <td>SIBLING</td>
   <td><span class="no">-</span></td>
   <td class="detail">Unilateral document.domain relaxation does not open the boundary<br><span class="d">self.domain=sop-lab.test (relaxed) target=NOT relaxed setterOk crossRead=blocked, mutual opt-in correctly required</span>
+      </td>
+</tr>
+<tr class="v-BYPASS">
+  <td><code>RELAX-04-insecure-origin-relaxation</code></td>
+  <td>origin-relaxation</td>
+  <td><span class="badge b-BYPASS">BYPASS</span>
+      </td>
+  <td>BYPASS</td>
+  <td>chromium</td>
+  <td>INSECURE_SIBLING</td>
+  <td><b class="yes">verified</b></td>
+  <td class="detail">document.domain relaxation on an insecure origin, with no opt-out header<br><span class="d">secureContext=false originAgentCluster=false domain sub.victim.sop-lab.test -&gt; sop-lab.test (CHANGED) setterOk crossRead=RESOLVED — no Origin-Agent-Cluster header was sent to either document</span>
       </td>
 </tr>
 <tr class="v-BLOCKED">
@@ -314,7 +326,7 @@
   <td>chromium</td>
   <td>ATTACKER</td>
   <td><span class="no">-</span></td>
-  <td class="detail">Cross-origin entries in the Resource Timing buffer<br><span class="d">entry present; duration=256ms responseStart=0 redirectCount=undefined timingsCoarsened=true — existence and duration leak regardless</span>
+  <td class="detail">Cross-origin entries in the Resource Timing buffer<br><span class="d">entry present; duration=254ms responseStart=0 redirectCount=undefined timingsCoarsened=true — existence and duration leak regardless</span>
       </td>
 </tr>
 <tr class="v-INCONCLUSIVE">
